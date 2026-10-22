@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import * as maplibregl from 'maplibre-gl';
+import * as maplibregl from '../utils/maplibreSetup';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { foodApi, setCsrfToken } from '../api/api';
 import { INTEREST_IMAGES } from '../utils/destinationImages';

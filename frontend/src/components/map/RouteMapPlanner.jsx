@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import * as maplibregl from '../../utils/maplibreSetup';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
