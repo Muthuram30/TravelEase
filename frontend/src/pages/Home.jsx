@@ -2,17 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { packagesApi } from '../api/api';
+import { DESTINATION_IMAGE_MAP } from '../utils/destinationImages';
 import PackageCard from '../components/PackageCard';
 import RecommendationEngine from '../components/recommendations/RecommendationEngine';
 import './Home.css';
 
 const DESTINATIONS = [
-  { name: 'Kerala',      tag: 'Backwaters',    img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=500&q=80', category: 'Nature' },
-  { name: 'Goa',         tag: 'Beach',         img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=500&q=80', category: 'Beach' },
-  { name: 'Rajasthan',   tag: 'Heritage',      img: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=500&q=80', category: 'Heritage' },
-  { name: 'Kashmir',     tag: 'Hill Station',  img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0?w=500&q=80', category: 'Hill Station' },
-  { name: 'Andaman',     tag: 'Islands',       img: 'https://images.unsplash.com/photo-1586861256632-9ba3c4c0e0b7?w=500&q=80', category: 'Beach' },
-  { name: 'Darjeeling',  tag: 'Tea Hills',     img: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=500&q=80', category: 'Nature' },
+  { name: 'Kerala',     tag: 'Backwaters', img: DESTINATION_IMAGE_MAP.kerala,     category: 'Nature' },
+  { name: 'Goa',        tag: 'Beach',      img: DESTINATION_IMAGE_MAP.goa,        category: 'Beach' },
+  { name: 'Rajasthan',  tag: 'Heritage',   img: DESTINATION_IMAGE_MAP.rajasthan,  category: 'Heritage' },
+  { name: 'Kashmir',    tag: 'Hill Station', img: DESTINATION_IMAGE_MAP.kashmir,  category: 'Hill Station' },
+  { name: 'Andaman',    tag: 'Islands',    img: DESTINATION_IMAGE_MAP.andaman,    category: 'Beach' },
+  { name: 'Darjeeling', tag: 'Tea Hills',  img: DESTINATION_IMAGE_MAP.darjeeling, category: 'Nature' },
 ];
 
 const CATEGORIES = [
@@ -484,9 +485,9 @@ function PanoramaExplorer() {
   const frameRef = useRef(null);
 
   const destinations = [
-    { name: 'Kerala Backwaters', img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=700&q=80' },
-    { name: 'Rajasthan Dunes',   img: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=700&q=80' },
-    { name: 'Kashmir Valley',    img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0?w=700&q=80' },
+    { name: 'Kerala Backwaters', img: DESTINATION_IMAGE_MAP.kerala },
+    { name: 'Rajasthan Dunes',   img: DESTINATION_IMAGE_MAP.jaisalmer },
+    { name: 'Kashmir Valley',    img: DESTINATION_IMAGE_MAP.kashmir },
   ];
 
   const [activeIdx, setActiveIdx] = useState(0);

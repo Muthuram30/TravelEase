@@ -1,23 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { destinationsApi } from '../api/api';
+import { getDestinationImage } from '../utils/destinationImages';
 import DestinationGlobe from '../components/3d/DestinationGlobe';
 import './Explore.css';
 
 const TYPES = ['All', 'coastal', 'snow_alpine', 'backwater', 'forest', 'heritage'];
 
-const DEST_PHOTO_MAP = {
-  'Munnar': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=600&q=80',
-  'Alappuzha': 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?w=600&q=80',
-  'Goa': 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&q=80',
-  'Lakshadweep': 'https://images.unsplash.com/photo-1586861256632-9ba3c4c0e0b7?w=600&q=80',
-  'Manali': 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=600&q=80',
-  'Jaisalmer': 'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=600&q=80',
-  'Delhi': 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80',
-  'Hampi': 'https://images.unsplash.com/photo-1600100397608-f010f443b7be?w=600&q=80',
-  'Wayanad': 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&q=80',
-  'Kovalam': 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?w=600&q=80'
-};
+// Local artwork resolver — keyed lookups and themed fallback are shared
+// with Home.jsx via utils/destinationImages.js
+const DEST_PHOTO_MAP = (dest) => getDestinationImage(
+  dest?.name || dest?.title || dest?.state || '',
+  dest?.environment_category || dest?.category || dest?.type || ''
+);
 
 export default function Explore() {
   const navigate = useNavigate();
@@ -149,7 +144,7 @@ export default function Explore() {
               >
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
                   <img
-                    src={DEST_PHOTO_MAP[selectedGlobeDest.name] || 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&q=80'}
+                    src={DEST_PHOTO_MAP(selectedGlobeDest)}
                     alt={selectedGlobeDest.name}
                     style={{ width: '64px', height: '64px', borderRadius: 'var(--radius-md)', objectFit: 'cover' }}
                   />
@@ -205,10 +200,10 @@ export default function Explore() {
                 }}
               >
                 <div className="explore-card__img-wrap">
-                  <img 
-                    src={DEST_PHOTO_MAP[dest.name] || 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&q=80'} 
-                    alt={dest.name} 
-                    loading="lazy" 
+                  <img
+                    src={DEST_PHOTO_MAP(dest)}
+                    alt={dest.name}
+                    loading="lazy"
                   />
                   <div className="explore-card__overlay" />
                   <div className="explore-card__badge">{dest.environment_category || 'Destination'}</div>

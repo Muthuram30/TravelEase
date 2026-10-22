@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { packagesApi } from '../api/api';
 import { formatPrice } from '../components/PackageCard';
+import { getDestinationImage, DESTINATION_IMAGE_MAP } from '../utils/destinationImages';
 import DestinationViewer3D from '../components/3d/DestinationViewer3D';
 import RouteMapPlanner from '../components/map/RouteMapPlanner';
 import './PackageDetails.css';
@@ -38,10 +39,14 @@ export default function PackageDetails() {
     </div>
   );
 
-  // Use cover image from API (image_type='primary'), fallback to first image, then generic
+  // Use cover image from API (image_type='primary'), fall back to first image,
+  // then to the locally bundled destination artwork
   const img = pkg.images?.find(img => img.image_type === 'primary')?.image_url
            || pkg.images?.[0]?.image_url
-           || 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200&q=85';
+           || getDestinationImage(
+             typeof pkg.destination === 'object' ? pkg.destination?.name : pkg.destination,
+             pkg.package_type || ''
+           );
 
   // Support both old `cost`/`availability` and new `price`/`max_group_size` column names
   const displayPrice = pkg.price ?? pkg.cost ?? 0;

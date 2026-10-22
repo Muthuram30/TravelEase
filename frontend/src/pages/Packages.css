@@ -8,7 +8,7 @@
 .packages-hero__bg {
   position: absolute;
   inset: 0;
-  background: url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1600&q=80') center/cover;
+  background: url('../assets/destinations/hero-kerala-backwaters.webp') center/cover;
 }
 .packages-hero__overlay {
   position: absolute;

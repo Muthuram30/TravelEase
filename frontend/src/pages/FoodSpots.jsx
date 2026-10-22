@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams, useSearchParams } from 'react-rout
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { foodApi, setCsrfToken } from '../api/api';
+import { INTEREST_IMAGES } from '../utils/destinationImages';
 import './FoodSpots.css';
 
 const CUISINES = ['All', 'Kerala Coastal', 'Malabar Traditional', 'Goan Seafood', 'Rajasthani Thali', 'Himachali Cuisine', 'Mughlai & Heritage'];
@@ -447,7 +448,7 @@ export default function FoodSpots() {
             ) : (
               <div className="foodspots-grid">
                 {locations.map((loc) => {
-                  const cover = loc.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80';
+                  const cover = loc.images?.[0]?.image_url || INTEREST_IMAGES.food;
                   return (
                     <div
                       key={loc.location_id}

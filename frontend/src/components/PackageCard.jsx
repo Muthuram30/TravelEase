@@ -1,34 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { resolvePackageImage, getDestinationImage } from '../utils/destinationImages';
 import './PackageCard.css';
-
-// Destination → Unsplash photo mapping for visual richness
-const DESTINATION_IMAGES = {
-  'Kerala':                'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=600&q=80',
-  'Goa':                   'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&q=80',
-  'Rajasthan':             'https://images.unsplash.com/photo-1599661046289-e31897846e41?w=600&q=80',
-  'Kashmir':               'https://images.unsplash.com/photo-1566837945700-30057527ade0?w=600&q=80',
-  'Andaman Islands':       'https://images.unsplash.com/photo-1586861256632-9ba3c4c0e0b7?w=600&q=80',
-  'Darjeeling':            'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=600&q=80',
-  'Varanasi':              'https://images.unsplash.com/photo-1561361058-c24e01d3e0f1?w=600&q=80',
-  'Manali-Leh':            'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=600&q=80',
-  'Delhi-Agra-Jaipur':     'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80',
-  'Shillong-Cherrapunji':  'https://images.unsplash.com/photo-1470770903676-69b98201ea1c?w=600&q=80',
-  'Tamil Nadu':            'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&q=80',
-};
-
-function getDestinationImage(destination) {
-  // Try exact match first
-  if (DESTINATION_IMAGES[destination]) return DESTINATION_IMAGES[destination];
-  // Try partial match
-  for (const [key, url] of Object.entries(DESTINATION_IMAGES)) {
-    if (destination.toLowerCase().includes(key.toLowerCase()) ||
-        key.toLowerCase().includes(destination.toLowerCase())) {
-      return url;
-    }
-  }
-  // Generic India fallback
-  return 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&q=80';
-}
 
 export function formatPrice(amount) {
   return new Intl.NumberFormat('en-IN', {
@@ -39,11 +12,13 @@ export function formatPrice(amount) {
 }
 
 export default function PackageCard({ pkg, delay = 0 }) {
-  // Prefer stored images from API; fall back to destination-keyed Unsplash fallback
-  const storedImg = pkg.images?.[0]?.image_url;
-  const imgUrl = storedImg || getDestinationImage(
-    typeof pkg.destination === 'object' ? pkg.destination?.name : (pkg.destination || '')
+  const fallbackImg = getDestinationImage(
+    (typeof pkg.destination === 'object' ? pkg.destination?.name : pkg.destination) || pkg.package_name || '',
+    pkg.package_type || ''
   );
+
+  // Prefer stored images from API; fall back to destination-keyed local artwork
+  const [imgSrc, setImgSrc] = useState(resolvePackageImage(pkg));
 
   // Support both old (cost/availability) and new (price/max_group_size) schema
   const displayPrice = pkg.price ?? pkg.cost ?? 0;
@@ -57,7 +32,14 @@ export default function PackageCard({ pkg, delay = 0 }) {
     >
       {/* Image */}
       <div className="pkg-card__image">
-        <img src={imgUrl} alt={destName} loading="lazy" />
+        <img
+          src={imgSrc}
+          alt={destName || pkg.package_name}
+          loading="lazy"
+          onError={() => {
+            if (imgSrc !== fallbackImg) setImgSrc(fallbackImg);
+          }}
+        />
         <div className="pkg-card__image-overlay" />
 
         {/* Availability badge */}

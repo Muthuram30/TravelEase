@@ -23,9 +23,10 @@
 .home-hero__bg {
   position: absolute;
   inset: -20% 0;
-  background-image: url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1600&q=85');
+  /* Locally bundled 16:9 Kerala backwaters artwork (WebP) */
+  background-image: url('../assets/destinations/hero-kerala-backwaters.webp');
   background-size: cover;
-  background-position: center;
+  background-position: 60% center; /* keeps the houseboat & palms visible on mobile */
   will-change: transform;
 }
 

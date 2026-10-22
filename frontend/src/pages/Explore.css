@@ -1,6 +1,6 @@
 .explore-page { min-height: 100vh; }
 .explore-hero { position:relative; padding:calc(var(--nav-height)+var(--space-xl)) 0 var(--space-xl); overflow:hidden; }
-.explore-hero__bg { position:absolute; inset:0; background:url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1600&q=80') center/cover; }
+.explore-hero__bg { position:absolute; inset:0; /* Locally bundled Himalayan twilight artwork (WebP) */ background:url('../assets/destinations/explore-himalayan-hero.webp') center/cover; }
 .explore-hero__overlay { position:absolute; inset:0; background:linear-gradient(to bottom,rgba(0,0,0,0.5),rgba(250,248,255,0.95)); }
 .explore-hero__content { position:relative; z-index:1; }
 .explore-hero__tag { color:var(--color-primary); font-weight:700; display:block; margin-bottom:var(--space-xs); }

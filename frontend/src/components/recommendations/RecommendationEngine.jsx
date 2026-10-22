@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recommendationsApi } from '../../api/api';
+import { resolvePackageImage } from '../../utils/destinationImages';
 import { formatPrice } from '../PackageCard';
 import './RecommendationEngine.css';
 
@@ -253,7 +254,7 @@ export default function RecommendationEngine({ compact = false }) {
         ) : (
           <div className="recom-cards-grid">
             {recommendations.slice(0, 3).map((pkg, idx) => {
-              const coverImg = pkg.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&q=80';
+              const coverImg = resolvePackageImage(pkg);
               const matchScore = Math.min(99, Math.max(78, Math.round(pkg.recommendation_score ? 70 + pkg.recommendation_score : 85 + (3 - idx) * 4)));
 
               return (
