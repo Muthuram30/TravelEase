@@ -1,5 +1,24 @@
 <?php
-require_once 'D:/#My Files/dbms/TravelEase/backend/api/config/database.php';
+
+// CLI-only confirm guard: this script TRUNCATES seeded tables.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("Forbidden: run this script from the command line only.\n");
+}
+$confirmed = in_array('--yes', $argv, true);
+if (!$confirmed) {
+    echo "WARNING: This script TRUNCATES tour_package, package_image, package_itinerary_day,\n";
+    echo "         package_inclusion, package_exclusion, package_tag_assignment and\n";
+    echo "         foodspot tables before re-seeding. Existing rows WILL be lost.\n";
+    echo "Type the word 'seed' to continue, or anything else to abort: ";
+    $line = trim((string) fgets(STDIN));
+    if ($line !== 'seed') {
+        exit("Aborted. Nothing was modified.\n");
+    }
+    echo "\n";
+}
+
+require_once __DIR__ . '/api/config/database.php';
 
 $pdo = getDbConnection();
 
@@ -318,11 +337,13 @@ $pkgStmt = $pdo->prepare("
     INSERT INTO tour_package (
         package_id, package_name, destination, destination_id, price, cost,
         duration, package_type, difficulty_level, best_season, min_group_size,
-        max_group_size, availability, is_featured, is_active, description
+        max_group_size, availability, is_featured, is_active, description,
+        cover_image_url
     ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?, 1, ?
+        ?, ?, ?, 1, ?,
+        ?
     )
 ");
 
@@ -352,20 +373,20 @@ $tagAssignStmt = $pdo->prepare("
 ");
 
 foreach ($packages as $p) {
+    // Locally generated artwork: pkg{N}_1 = cover, pkg{N}_{2,3} = gallery
     $pkgStmt->execute([
         $p['id'], $p['name'], $p['destination'], $p['dest_id'], $p['price'], $p['price'],
         $p['duration'], $p['type'], $p['difficulty'], $p['season'], $p['min_group'],
-        $p['max_group'], $p['max_group'], $p['featured'], $p['desc']
+        $p['max_group'], $p['max_group'], $p['featured'], $p['desc'],
+        "/storage/uploads/packages/pkg{$p['id']}_1.jpg"
     ]);
 
     // Cover image
-    $imgStmt->execute([$p['id'], $p['cover'], 'primary', 1, $p['name']]);
-    
-    // Gallery images
-    $order = 2;
-    foreach ($p['gallery'] as $g) {
-        $imgStmt->execute([$p['id'], $g, 'gallery', $order++, $p['name'] . ' Highlight']);
-    }
+    // Local generated artwork from tools/generate_package_images.ps1
+    // (pkg{N}_1.jpg cover · pkg{N}_2 / pkg{N}_3 gallery variants)
+    $imgStmt->execute([$p['id'], "/storage/uploads/packages/pkg{$p['id']}_1.jpg", 'primary', 1, $p['name']]);
+    $imgStmt->execute([$p['id'], "/storage/uploads/packages/pkg{$p['id']}_2.jpg", 'gallery', 2, $p['name'] . ' — Evening']);
+    $imgStmt->execute([$p['id'], "/storage/uploads/packages/pkg{$p['id']}_3.jpg", 'gallery', 3, $p['name'] . ' — Night']);
 
     // Itinerary days
     foreach ($p['itinerary'] as $day) {

@@ -89,7 +89,7 @@ try {
             SELECT t.* FROM package_tag t
             JOIN package_tag_assignment pta ON t.tag_id = pta.tag_id
             WHERE pta.package_id = ?
-            ORDER BY t.tag_category, t.tag_name
+            ORDER BY t.tag_name
         ');
         $tagStmt->execute([$id]);
         $pkg['tags'] = $tagStmt->fetchAll();

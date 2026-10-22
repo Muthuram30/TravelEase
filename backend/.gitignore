@@ -7,8 +7,12 @@
 /storage/rate_limits/*.json
 
 # Uploaded files
-/storage/uploads/**
+/storage/uploads/*
 !/storage/uploads/.gitkeep
+# Shipped generated artwork lives here and IS committed
+!/storage/uploads/packages
+/storage/uploads/packages/*
+!/storage/uploads/packages/*.jpg
 
 # PHP logs
 *.log

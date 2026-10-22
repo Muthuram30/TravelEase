@@ -15,7 +15,10 @@ import react from '@vitejs/plugin-react'
 // ============================================================
 
 // Detect PHP backend target - can be overridden via env
-const PHP_BACKEND_TARGET = process.env.VITE_PHP_BACKEND || 'http://localhost/travelease/backend/api';
+// NOTE: for /api the target includes /api; for /storage we must proxy to the
+// backend ROOT (files live in backend/storage/uploads), so keep both defined.
+const BACKEND_ROOT   = process.env.VITE_PHP_BACKEND || 'http://localhost/travelease/backend';
+const BACKEND_API    = `${BACKEND_ROOT}/api`;
 
 export default defineConfig({
   plugins: [react()],
@@ -33,7 +36,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: PHP_BACKEND_TARGET,
+        target: BACKEND_API,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         configure: (proxy, options) => {
@@ -49,9 +52,8 @@ export default defineConfig({
         },
       },
       '/storage': {
-        target: PHP_BACKEND_TARGET,
+        target: BACKEND_ROOT,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/storage/, '/storage'),
       },
     },
   },
