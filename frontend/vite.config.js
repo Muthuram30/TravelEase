@@ -31,6 +31,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Always use exactly this port: if it is taken (e.g. a stray dev server),
+    // fail loudly instead of silently drifting to 5174 and breaking the
+    // backend allow-listed CORS origin + /api proxy assumptions.
+    strictPort: true,
     fs: {
       strict: false,
     },
