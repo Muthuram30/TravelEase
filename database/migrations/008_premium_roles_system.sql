@@ -20,20 +20,11 @@ ALTER TABLE users
 ALTER TABLE users
     ADD INDEX idx_premium (role, premium_expiry);
 
--- Create premium users from existing users
-UPDATE users 
-SET role = 'premium', 
-    premium_since = DATE_SUB(CURDATE(), INTERVAL 30 DAY),
-    premium_expiry = DATE_ADD(CURDATE(), INTERVAL 335 DAY),
-    premium_features = JSON_OBJECT(
-        'advanced_filters', true,
-        'unlimited_bookings', true,
-        'priority_support', true,
-        'exclusive_packages', true,
-        'route_planner', true,
-        'food_discovery', true
-    )
-WHERE email = 'john.doe@example.com';
+-- Note: individual demo/premium seed users are NOT provisioned by this
+-- migration. Promote a real account to premium explicitly when needed:
+--   UPDATE users SET role='premium', premium_since=CURDATE(),
+--     premium_expiry=DATE_ADD(CURDATE(), INTERVAL 365 DAY), ...
+--   WHERE email = '<real customer email>';
 
 -- Update admin account
 UPDATE users

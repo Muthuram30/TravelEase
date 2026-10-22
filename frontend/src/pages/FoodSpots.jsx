@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { foodApi } from '../api/api';
+import { foodApi, setCsrfToken } from '../api/api';
 import './FoodSpots.css';
 
 const CUISINES = ['All', 'Kerala Coastal', 'Malabar Traditional', 'Goan Seafood', 'Rajasthani Thali', 'Himachali Cuisine', 'Mughlai & Heritage'];
@@ -131,6 +131,10 @@ export default function FoodSpots() {
   useEffect(() => {
     foodApi.merchantMe()
       .then((data) => {
+        // Refresh CSRF token from the merchant session check
+        if (data?.merchant?.csrf_token || data?.csrf_token) {
+          setCsrfToken(data.merchant?.csrf_token || data.csrf_token);
+        }
         setMerchantUser(data);
         loadMerchantPortal();
       })

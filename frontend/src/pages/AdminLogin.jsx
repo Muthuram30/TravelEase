@@ -76,17 +76,17 @@ export default function AdminLogin() {
 
           <div className="input-group">
             <label htmlFor="admin-user">
-              <span className="material-symbols-outlined">email</span>
-              Admin Email
+              <span className="material-symbols-outlined">badge</span>
+              Admin Email or Username
             </label>
             <input
               id="admin-user"
-              type="email"
+              type="text"
               className="input-field"
-              placeholder="admin@travelease.com"
+              placeholder="Your admin email or username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              autoComplete="username"
               required
             />
           </div>
@@ -131,7 +131,7 @@ export default function AdminLogin() {
 
         <div className="adminlogin-footer text-label-caps">
           <p style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            Demo: admin@travelease.com / admin123
+            Admin accounts are provisioned by the system owner.
           </p>
           <a href="/" className="adminlogin-back">
             <span className="material-symbols-outlined">arrow_back</span>

@@ -37,7 +37,6 @@ function validatePackageBody(array $body): array {
 try {
     $pdo  = getDbConnection();
     $body = getJsonBody();
-    error_log('DEBUG manage.php: method=' . $method . ' body=' . json_encode($body));
 
     // CREATE
     if ($method === 'POST') {

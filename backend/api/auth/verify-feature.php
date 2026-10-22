@@ -34,6 +34,9 @@ try {
     if (!$user) {
         jsonError('Authentication required to access this feature', 401);
     }
+
+    // Role checks are a security decision — require CSRF on this POST
+    validateCsrfToken();
     
     // Define feature requirements
     $featureRequirements = [

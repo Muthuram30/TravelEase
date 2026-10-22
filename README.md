@@ -40,14 +40,19 @@ TravelEase/
 ### 1. Database
 
 ```powershell
-# From the project root
+# From the project root — import base schema, then migrations in order
 mysql -u root -p < database/schema.sql
+Get-Content database\migrations\README.md   # canonical migration order (001 → 013)
+```
 
-# Additive migrations (07X/00X pairs may coexist; run the ones matching your feature set)
+Key migrations (run each in numerical order):
+
+```powershell
 mysql -u root -p < database/migrations/001_phase2_schema_normalization_fixed.sql
 mysql -u root -p < database/migrations/003_food_platform.sql
-mysql -u root -p < database/migrations/004_users_authentication.sql
-mysql -u root -p < database/migrations/005_smart_travel_assistant.sql
+mysql -u root -p < database/migrations/007_users_table.sql
+mysql -u root -p < database/migrations/011_upi_payment_system.sql
+mysql -u root -p < database/migrations/013_fix_booking_constraints_demo_payment.sql
 ```
 
 ### 2. Backend configuration
@@ -129,11 +134,13 @@ Open **http://localhost:5173**.
 
 ## Security Notes
 
-- Admin sessions use PHP session cookies (`HttpOnly`, `SameSite=Lax`, `Secure` in production) with CSRF validation on every mutation
-- Admin login is rate-limited (5 attempts / 15 minutes); passwords are bcrypt-hashed
+- **Admin login** walks a unified lookup chain (`users` → `user_account` → legacy `admin` tables) so admins provisioned by `setup_admin.php` can log in with either their username or email. All login endpoints are rate-limited (5 attempts / 15 minutes per IP)
+- **Admin sessions** use PHP session cookies (`HttpOnly`, `SameSite=Lax`, `Secure` in production) with CSRF validation on **every** mutation (customer bookings, payments, theme updates, merchant portal, and admin operations all require the `X-CSRF-Token` header)
 - All SQL goes through PDO prepared statements
+- **Booking ownership**: a payment/booking ID alone never grants access — every customer payment and checkout query verifies the record belongs to the authenticated user
+- **Demo payments are never real payments**: simulated demo checkouts mark bookings with a distinct `demo_completed` status that the admin verification flow can never map to `paid`; bookings with genuinely verified or in-flight UPI payments cannot be demo-simulated
 - Booking lookups require a 128-character cryptographic token — sequential ID enumeration is impossible
-- Image uploads validate MIME type (`jpeg`/`png`/`webp`), enforce a 5 MB limit, and sanitize filenames
+- **Image uploads** validate sniffed MIME type (JPEG/PNG/WebP; SVG excluded as an XSS vector), enforce a 5 MB limit, and use random filenames; package-image administration is admin-only
 - AI provider keys live only server-side; the browser never talks to the AI provider directly
 
 ## More Documentation

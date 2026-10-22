@@ -46,7 +46,13 @@ try {
     startSession();
     $user = getCurrentUser();
     $userId = $user['user_id'] ?? null;
-    $userTheme = $user['theme_preference'] ?? 'kerala-green';
+
+    // Authenticated requests mutate history (view tracking) — require CSRF.
+    // Guest requests are read-only scoring and need no token.
+    if ($userId) {
+        validateCsrfToken();
+    }
+$userTheme = $user['theme_preference'] ?? 'kerala-green';
     $userRole = $user['role'] ?? 'guest';
     
     // Check if user is using advanced filters (premium feature)

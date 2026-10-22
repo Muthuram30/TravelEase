@@ -40,7 +40,24 @@ try {
         jsonError('User not found or inactive', 401);
     }
 
-    jsonSuccess($user);
+    // Ensure a CSRF token always exists while a session is alive,
+    // so page reloads can keep issuing mutation requests safely.
+    if (empty($_SESSION['csrf_token'])) {
+        generateCsrfToken();
+    }
+
+    jsonSuccess([
+        'user_id'       => (int)$user['user_id'],
+        'email'         => $user['email'],
+        'full_name'     => $user['full_name'],
+        'phone'         => $user['phone'],
+        'role'          => $user['role'],
+        'theme_preference' => $user['theme_preference'],
+        'profile_image' => $user['profile_image'],
+        'email_verified'=> (bool)$user['email_verified'],
+        'last_login'    => $user['last_login'],
+        'csrf_token'    => getCsrfToken(),
+    ]);
 
 } catch (Exception $e) {
     jsonError($e->getMessage(), 401);

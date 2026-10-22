@@ -60,10 +60,8 @@ function jsonError(string $message, int $code = 400): void {
  */
 function getJsonBody(): array {
     $raw = file_get_contents('php://input');
-    error_log('DEBUG getJsonBody: raw=' . var_export($raw, true));
     if (!$raw) return [];
     $decoded = json_decode($raw, true);
-    error_log('DEBUG getJsonBody: decoded=' . var_export($decoded, true));
     return is_array($decoded) ? $decoded : [];
 }
 
@@ -385,6 +383,19 @@ function requireAuth(): array {
     if (!$user) {
         jsonError('Authentication required. Please log in.', 401);
     }
+    return $user;
+}
+
+/**
+ * Require an authenticated user session AND a valid CSRF token.
+ * Use this for every CUSTOMER-side mutation (POST/PUT/DELETE):
+ * bookings, payments, theme updates, etc.
+ * The token is obtained from /api/auth/login.php or /api/auth/me.php
+ * and sent by the frontend in the X-CSRF-Token header.
+ */
+function requireAuthWithCsrf(): array {
+    $user = requireAuth();
+    validateCsrfToken();
     return $user;
 }
 

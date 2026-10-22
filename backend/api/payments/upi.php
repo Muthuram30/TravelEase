@@ -76,7 +76,7 @@ try {
     // POST: Create UPI QR for a booking
     // ============================================================
     if ($method === 'POST' && $action === 'create_qr') {
-        requireAuth(); // Customer must be logged in
+        requireAuthWithCsrf(); // Customer must be logged in; CSRF-checked mutation
 
         $body = getJsonBody();
         $bookingId = (int) ($body['booking_id'] ?? 0);
@@ -85,18 +85,20 @@ try {
             jsonError('Booking ID is required.');
         }
 
-        // Verify booking exists and belongs to current user
+        // Ownership check: the booking must belong to the authenticated
+        // user (by booking.user_id, or by the tourist record created
+        // during guest-style booking with the user's own email).
+        // NOTE: possession of a booking/payment ID is NEVER sufficient.
         $user = getCurrentUser();
-        error_log('DEBUG payment: user email=' . $user['email'] . ' bookingId=' . $bookingId);
         $stmt = $pdo->prepare('
             SELECT b.*, t.email, t.name
             FROM booking b
             JOIN tourist t ON b.tourist_id = t.tourist_id
-            WHERE b.booking_id = ? AND (t.email = ? OR b.payment_id IS NOT NULL)
+            WHERE b.booking_id = ?
+              AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$bookingId, $user['email']]);
+        $stmt->execute([$bookingId, $user['user_id'] ?? 0, $user['email']]);
         $booking = $stmt->fetch();
-        error_log('DEBUG payment: booking=' . ($booking ? 'found' : 'NOT FOUND') . ' tourist_email=' . ($booking['email'] ?? 'none'));
 
         if (!$booking) {
             jsonError('Booking not found or access denied.', 404);
@@ -215,7 +217,7 @@ try {
             FROM payment_attempt pa
             JOIN booking b ON pa.booking_id = b.booking_id
             JOIN tourist t ON b.tourist_id = t.tourist_id
-            WHERE pa.payment_id = ? AND (t.email = ? OR b.user_id = ?)
+            WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
         $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
         $payment = $stmt->fetch();
@@ -247,7 +249,7 @@ try {
     // POST: Customer submits UTR after payment
     // ============================================================
     if ($method === 'POST' && $action === 'submit_utr') {
-        requireAuth();
+        requireAuthWithCsrf();
 
         $body = getJsonBody();
         $paymentId = (int) ($body['payment_id'] ?? 0);
@@ -268,7 +270,7 @@ try {
             FROM payment_attempt pa
             JOIN booking b ON pa.booking_id = b.booking_id
             JOIN tourist t ON b.tourist_id = t.tourist_id
-            WHERE pa.payment_id = ? AND (t.email = ? OR b.user_id = ?)
+            WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
         $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
         $payment = $stmt->fetch();
@@ -279,6 +281,12 @@ try {
 
         if ($payment['payment_status'] !== 'pending_qr' && $payment['payment_status'] !== 'pending_verification') {
             jsonError('This payment cannot accept UTR submission.');
+        }
+
+        // Reject submissions on expired payment attempts — our verification
+        // team can re-issue a QR; an expired attempt must not stay payable.
+        if (!empty($payment['expires_at']) && strtotime($payment['expires_at']) < time()) {
+            jsonError('This payment attempt has expired. Please start a new payment attempt.', 410);
         }
 
         // Check for duplicate UTR (same UTR used for different booking)
@@ -326,7 +334,7 @@ try {
     // POST: Upload payment receipt (optional)
     // ============================================================
     if ($method === 'POST' && $action === 'upload_receipt') {
-        requireAuth();
+        requireAuthWithCsrf();
 
         if (!isset($_FILES['receipt']) || $_FILES['receipt']['error'] !== UPLOAD_ERR_OK) {
             jsonError('Receipt file is required.');
@@ -343,7 +351,7 @@ try {
             FROM payment_attempt pa
             JOIN booking b ON pa.booking_id = b.booking_id
             JOIN tourist t ON b.tourist_id = t.tourist_id
-            WHERE pa.payment_id = ? AND (t.email = ? OR b.user_id = ?)
+            WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
         $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
         $payment = $stmt->fetch();
@@ -355,17 +363,38 @@ try {
         // Validate file
         $file = $_FILES['receipt'];
         $allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        $extByMime = [
+            'image/jpeg'      => ['jpg', 'jpeg'],
+            'image/png'       => ['png'],
+            'image/webp'      => ['webp'],
+            'application/pdf' => ['pdf'],
+        ];
         $maxSize = 5 * 1024 * 1024; // 5MB
 
-        if (!in_array($file['type'], $allowedTypes)) {
+        // NEVER trust $_FILES['type'] (client-controlled). Sniff the real bytes.
+        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+        if (!$finfo) {
+            jsonError('Server could not validate the file.', 500);
+        }
+        $mimeType = @finfo_file($finfo, $file['tmp_name']) ?: '';
+        @finfo_close($finfo);
+
+        if (!in_array($mimeType, $allowedTypes, true)) {
             jsonError('Invalid file type. Allowed: JPEG, PNG, WebP, PDF.');
         }
+
+        // Extension must match the detected content type
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExts = $extByMime[$mimeType];
+        if (!in_array($ext, $allowedExts, true)) {
+            jsonError('File extension does not match the actual file type.');
+        }
+
         if ($file['size'] > $maxSize) {
             jsonError('File too large. Maximum 5MB.');
         }
 
-        // Secure filename
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        // Secure filename (never derived from user input except validated extension)
         $safeName = 'receipt_' . $paymentId . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
         $uploadDir = dirname(__DIR__, 2) . '/storage/payment_receipts';
         
@@ -395,7 +424,7 @@ try {
     // POST: Cancel payment attempt (customer)
     // ============================================================
     if ($method === 'POST' && $action === 'cancel') {
-        requireAuth();
+        requireAuthWithCsrf();
 
         $body = getJsonBody();
         $paymentId = (int) ($body['payment_id'] ?? 0);
@@ -410,7 +439,7 @@ try {
             FROM payment_attempt pa
             JOIN booking b ON pa.booking_id = b.booking_id
             JOIN tourist t ON b.tourist_id = t.tourist_id
-            WHERE pa.payment_id = ? AND (t.email = ? OR b.user_id = ?)
+            WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
         $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
         $payment = $stmt->fetch();

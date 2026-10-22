@@ -223,6 +223,7 @@ export const authApi = {
 
 // ============================================================
 // USER AUTHENTICATION (New unified system with themes)
+// Responses use the standard envelope: { success, data }
 // ============================================================
 export const userAuthApi = {
   login: async (email, password) => {
@@ -234,9 +235,13 @@ export const userAuthApi = {
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
-      throw new Error(json.error || 'Login failed');
+      throw new Error(json.message || 'Login failed');
     }
-    return json.user;
+    // Store CSRF token so all subsequent mutations are protected
+    if (json.data?.csrf_token) {
+      setCsrfToken(json.data.csrf_token);
+    }
+    return json.data.user;
   },
 
   register: async (email, password, full_name, phone, theme_preference = 'default') => {
@@ -248,9 +253,12 @@ export const userAuthApi = {
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
-      throw new Error(json.error || 'Registration failed');
+      throw new Error(json.message || 'Registration failed');
     }
-    return json.user;
+    if (json.data?.csrf_token) {
+      setCsrfToken(json.data.csrf_token);
+    }
+    return json.data.user;
   },
 
   logout: async () => {
@@ -259,6 +267,7 @@ export const userAuthApi = {
       credentials: 'include',
     });
     const json = await res.json();
+    setCsrfToken(''); // session gone — token is dead
     return json;
   },
 
@@ -269,21 +278,29 @@ export const userAuthApi = {
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
-      throw new Error(json.error || 'Not authenticated');
+      throw new Error(json.message || 'Not authenticated');
     }
-    return json.user;
+    const data = json.data || {};
+    // Refresh the in-memory CSRF token on every session check
+    if (data.csrf_token) {
+      setCsrfToken(data.csrf_token);
+    }
+    return data;
   },
 
   updateTheme: async (theme_preference) => {
     const res = await fetch(`${BASE_URL}/auth/update-theme.php`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
       credentials: 'include',
       body: JSON.stringify({ theme_preference }),
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
-      throw new Error(json.error || 'Failed to update theme');
+      throw new Error(json.message || 'Failed to update theme');
     }
     return json.theme_preference;
   },
@@ -393,10 +410,19 @@ export const foodApi = {
     apiFetch('/food/merchant_auth.php?action=login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }).then((data) => {
+      // Store the CSRF token issued for the merchant session
+      if (data?.merchant?.csrf_token || data?.csrf_token) {
+        setCsrfToken(data.merchant?.csrf_token || data.csrf_token);
+      }
+      return data;
     }),
   merchantLogout: () =>
     apiFetch('/food/merchant_auth.php?action=logout', {
       method: 'POST',
+    }).then((data) => {
+      setCsrfToken('');
+      return data;
     }),
   merchantMe: () => apiFetch('/food/merchant_auth.php'),
   getMerchantPortalData: () => apiFetch('/food/merchant_manage.php'),
@@ -456,7 +482,10 @@ export const recommendationsApi = {
   getSmartRecommendations: async (preferences) => {
     const res = await fetch(`${BASE_URL}/recommendations/smart-assistant.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
       credentials: 'include',
       body: JSON.stringify(preferences),
     });
@@ -510,11 +539,14 @@ export const premiumApi = {
     return json.data;
   },
 
-  // Verify access to a specific feature
+  // Verify access to a specific feature (mutation — CSRF-protected)
   verifyFeature: async (featureName) => {
     const res = await fetch(`${BASE_URL}/auth/verify-feature.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
       credentials: 'include',
       body: JSON.stringify({ feature: featureName }),
     });

@@ -22,11 +22,13 @@ $isCli = php_sapi_name() === 'cli';
 // ---- Token check for browser access ----
 if (!$isCli) {
     $token         = $_GET['token'] ?? '';
-    $expectedToken = $_ENV['SETUP_TOKEN'] ?? 'travelease-setup-2026';
-    if ($token !== $expectedToken) {
+    $expectedToken = getenv('SETUP_TOKEN') ?: ($_ENV['SETUP_TOKEN'] ?? '');
+    // No configured secret => deny ALL browser access (CLI remains available).
+    // A guessable default token must never implicitly protect this endpoint.
+    if ($expectedToken === '' || !hash_equals($expectedToken, $token)) {
         header('Content-Type: application/json');
         http_response_code(403);
-        echo json_encode(['error' => 'Forbidden. Provide the correct setup token as ?token=...']);
+        echo json_encode(['error' => 'Forbidden. Provide the correct setup token as ?token=... (or run from the CLI).']);
         exit();
     }
 }

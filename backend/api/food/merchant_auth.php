@@ -59,6 +59,12 @@ if ($method === 'POST') {
         jsonError('Email and password are required', 400);
     }
 
+    // Brute-force protection (consistent with admin/customer logins)
+    $ip = getClientIp();
+    if (isRateLimited($ip, 5, 900)) {
+        jsonError('Too many failed attempts. Please try again in 15 minutes.', 429);
+    }
+
     try {
         $stmt = $db->prepare("
             SELECT merchant_id, business_name, owner_name, email, phone, password_hash, status, rejection_reason
@@ -69,10 +75,14 @@ if ($method === 'POST') {
         $merchant = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$merchant || !password_verify($password, $merchant['password_hash'])) {
+            recordFailedAttempt($ip);
             jsonError('Invalid email or password', 401);
         }
 
-        // Store session
+        clearRateLimit($ip);
+
+        // Store session (session ID regenerated to prevent fixation)
+        session_regenerate_id(true);
         $_SESSION['food_merchant_id'] = (int)$merchant['merchant_id'];
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));

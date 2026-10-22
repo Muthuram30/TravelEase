@@ -12,6 +12,11 @@ if (!$merchantId) {
     jsonError('Authentication required. Please log in as a merchant.', 401);
 }
 
+// Mutations require a valid CSRF token (issued by merchant_auth.php login/me)
+if ($method !== 'GET') {
+    validateCsrfToken();
+}
+
 try {
     // Verify merchant exists and get status
     $stmt = $db->prepare("SELECT merchant_id, business_name, status FROM foodspot_merchant WHERE merchant_id = ?");

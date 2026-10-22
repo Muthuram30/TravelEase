@@ -26,6 +26,9 @@ try {
         jsonError('Not authenticated', 401);
     }
 
+    // Theme update is a mutation — require a valid CSRF token
+    validateCsrfToken();
+
     $db = getDbConnection();
     $data = getJsonBody();
 

@@ -12,12 +12,14 @@ require_once __DIR__ . '/../config/helpers.php';
 
 setCorsHeaders();
 
-// Creating a booking always requires a signed-in customer.
+// Creating a booking always requires a signed-in customer,
+// and mutations require a valid CSRF token (X-CSRF-Token header).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     startSession();
     if (empty($_SESSION['user_id'])) {
         jsonError('Please log in or sign up before booking.', 401);
     }
+    validateCsrfToken();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

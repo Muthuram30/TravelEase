@@ -14,12 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $body = getJsonBody();
-error_log('DEBUG login: body=' . json_encode($body));
 $identity = trim($body['identity'] ?? $body['username'] ?? '');
 $password = $body['password'] ?? '';
 
 if (!$identity || !$password || strlen($identity) > 100 || strlen($password) > 255) {
-    error_log('DEBUG login: missing identity or password');
     jsonError('Invalid credentials.', 401);
 }
 

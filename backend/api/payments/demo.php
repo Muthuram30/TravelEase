@@ -36,76 +36,40 @@ try {
         // Determine if it's a token (128-char hex) or numeric ID
         $isToken = strlen($bookingRef) > 10 && !ctype_digit($bookingRef);
 
-        if ($isToken) {
-            $stmt = $pdo->prepare('
-                SELECT
-                    b.booking_id,
-                    b.confirmation_token,
-                    b.booking_date,
-                    b.travel_date,
-                    b.number_of_persons,
-                    b.total_cost,
-                    b.booking_status,
-                    b.payment_status,
-                    t.name        AS customer_name,
-                    t.email       AS customer_email,
-                    t.phone       AS customer_phone,
-                    p.package_name,
-                    p.destination,
-                    p.cost        AS package_cost
-                FROM booking b
-                JOIN tourist      t ON b.tourist_id = t.tourist_id
-                JOIN tour_package p ON b.package_id = p.package_id
-                WHERE b.confirmation_token = ?
-            ');
-            $stmt->execute([$bookingRef]);
-        } else {
-            $stmt = $pdo->prepare('
-                SELECT
-                    b.booking_id,
-                    b.confirmation_token,
-                    b.booking_date,
-                    b.travel_date,
-                    b.number_of_persons,
-                    b.total_cost,
-                    b.booking_status,
-                    b.payment_status,
-                    t.name        AS customer_name,
-                    t.email       AS customer_email,
-                    t.phone       AS customer_phone,
-                    p.package_name,
-                    p.destination,
-                    p.cost        AS package_cost
-                FROM booking b
-                JOIN tourist      t ON b.tourist_id = t.tourist_id
-                JOIN tour_package p ON b.package_id = p.package_id
-                WHERE b.booking_id = ?
-            ');
-            $stmt->execute([(int)$bookingRef]);
-        }
+        // Single ownership query — the booking must belong to the
+        // authenticated user (booking.user_id) or be associated with the
+        // tourist record created for their account email during booking.
+        $identColumn = $isToken ? 'b.confirmation_token' : 'b.booking_id';
+        $identValue  = $isToken ? $bookingRef : (int)$bookingRef;
+
+        $stmt = $pdo->prepare("
+            SELECT
+                b.booking_id,
+                b.confirmation_token,
+                b.booking_date,
+                b.travel_date,
+                b.number_of_persons,
+                b.total_cost,
+                b.booking_status,
+                b.payment_status,
+                t.name        AS customer_name,
+                t.email       AS customer_email,
+                t.phone       AS customer_phone,
+                p.package_name,
+                p.destination,
+                p.cost        AS package_cost
+            FROM booking b
+            JOIN tourist      t ON b.tourist_id = t.tourist_id
+            JOIN tour_package p ON b.package_id = p.package_id
+            WHERE {$identColumn} = ?
+              AND (b.user_id = ? OR t.email = ?)
+        ");
+        $stmt->execute([$identValue, $user['user_id'] ?? 0, $user['email'] ?? '']);
 
         $booking = $stmt->fetch();
         if (!$booking) {
+            // Deliberately generic: do not reveal whether the booking exists
             jsonError('Booking not found.', 404);
-        }
-
-        // Authorization: ensure the booking belongs to this user
-        // Match by email or user_id (handle both old and new schema)
-        $userEmail = $user['email'] ?? '';
-        if ($booking['customer_email'] !== $userEmail) {
-            // Try user_id match (if booking has user_id column)
-            try {
-                $authCheck = $pdo->prepare('SELECT user_id FROM booking WHERE booking_id = ?');
-                $authCheck->execute([$booking['booking_id']]);
-                $row = $authCheck->fetch();
-                if ($row && isset($row['user_id']) && $row['user_id'] !== null) {
-                    if ((int)$row['user_id'] !== (int)($user['user_id'] ?? 0)) {
-                        jsonError('Access denied.', 403);
-                    }
-                }
-            } catch (Exception $ignored) {
-                // user_id column may not exist — skip this check
-            }
         }
 
         jsonSuccess($booking);
@@ -117,7 +81,7 @@ try {
     // Body: { "booking_id": 123 }
     // ============================================================
     if ($method === 'POST' && $action === 'simulate') {
-        requireAuth();
+        requireAuthWithCsrf();
         $user = getCurrentUser();
 
         $body = getJsonBody();
@@ -127,73 +91,85 @@ try {
             jsonError('booking_id is required.', 400);
         }
 
-        // Verify booking exists and belongs to user
+        // Verify booking exists AND belongs to the authenticated user.
+        // Possession of a booking ID alone must never grant access.
         $stmt = $pdo->prepare('
-            SELECT b.booking_id, b.total_cost, b.booking_status, b.payment_status,
+            SELECT b.booking_id, b.booking_status, b.payment_status, b.total_cost,
                    t.email AS customer_email, t.name AS customer_name
             FROM booking b
             JOIN tourist t ON b.tourist_id = t.tourist_id
             WHERE b.booking_id = ?
+              AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$bookingId]);
+        $stmt->execute([$bookingId, $user['user_id'] ?? 0, $user['email'] ?? '']);
         $booking = $stmt->fetch();
 
         if (!$booking) {
             jsonError('Booking not found.', 404);
         }
 
-        // Authorization check
-        $userEmail = $user['email'] ?? '';
-        if ($booking['customer_email'] !== $userEmail) {
-            try {
-                $authCheck = $pdo->prepare('SELECT user_id FROM booking WHERE booking_id = ?');
-                $authCheck->execute([$bookingId]);
-                $row = $authCheck->fetch();
-                if ($row && isset($row['user_id']) && $row['user_id'] !== null) {
-                    if ((int)$row['user_id'] !== (int)($user['user_id'] ?? 0)) {
-                        jsonError('Access denied.', 403);
-                    }
-                }
-            } catch (Exception $ignored) {}
+        // ---- DEMO/PAYMENT SEPARATION GUARDS ----
+        // A simulated payment must NEVER be confused with a genuine one.
+        // 1. Never overwrite an already-verified/real payment status.
+        $blockedStatuses = ['paid', 'verified'];
+        if (in_array($booking['payment_status'], $blockedStatuses, true)) {
+            jsonError('This booking already has a verified payment. Demo simulation is not allowed.', 409);
         }
 
-        // Check payment_status column exists (added by migration 002)
-        $hasPaymentStatus = false;
-        try {
-            $colCheck = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = 'payment_status'");
-            $hasPaymentStatus = (int)$colCheck->fetchColumn() > 0;
-        } catch (Exception $ignored) {}
+        // 2. Only Pending bookings may be demo-paid; cancelled/rejected/
+        //    confirmed bookings cannot go through the demo flow again.
+        if ($booking['booking_status'] !== 'Pending') {
+            jsonError('Demo payment is only available for pending bookings.', 409);
+        }
+
+        // 3. A booking with a REAL UPI attempt in progress/pending
+        //    verification must not be demo-simulated.
+        $pdostmt = $pdo->prepare("
+            SELECT COUNT(*) FROM payment_attempt
+            WHERE booking_id = ? AND payment_status IN ('pending_qr', 'pending_verification', 'verified')
+        ");
+        $pdostmt->execute([$bookingId]);
+        if ((int)$pdostmt->fetchColumn() > 0) {
+            jsonError('This booking has an active UPI payment attempt — demo simulation is disabled.', 409);
+        }
+
+        // Determine schema capabilities explicitly (no silent catch-fallbacks)
+        $colStmt = $pdo->query(
+            "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = 'payment_status'"
+        );
+        $paymentColumnType = $colStmt->fetchColumn() ?: null;   // false/null when column absent
+        $supportsDemoStatus = $paymentColumnType !== null
+            && strpos($paymentColumnType, 'demo_completed') !== false;
 
         // DEMO ONLY: Mark payment_status as 'demo_completed'
         // This is NEVER treated as real payment. Booking status remains 'Pending'.
         // Admin must still review and confirm the booking manually.
-        if ($hasPaymentStatus) {
-            // Check if payment_status enum allows 'demo_completed' — if not, use a note approach
-            try {
-                // First try to update payment_status (may fail if enum doesn't have this value)
-                $pdo->prepare('UPDATE booking SET payment_status = ? WHERE booking_id = ?')
-                    ->execute(['demo_completed', $bookingId]);
-            } catch (PDOException $enumErr) {
-                // enum doesn't allow demo_completed — use special_requests field to note demo
-                error_log('[TravelEase Demo] payment_status enum does not allow demo_completed, using special_requests note: ' . $enumErr->getMessage());
-                try {
-                    $pdo->prepare("UPDATE booking SET special_requests = CONCAT(COALESCE(special_requests,''), '[DEMO PAYMENT SIMULATED]') WHERE booking_id = ?")
-                        ->execute([$bookingId]);
-                } catch (Exception $ignored2) {}
-            }
+        if ($supportsDemoStatus) {
+            // The enum explicitly supports demo_completed (migration 013 applied)
+            $pdo->prepare('UPDATE booking SET payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE booking_id = ?')
+                ->execute(['demo_completed', $bookingId]);
+        } elseif ($paymentColumnType !== null) {
+            // Column exists but enum lacks demo_completed — demo is NOT supported:
+            // refuse instead of silently writing a fake "success" state.
+            error_log('[TravelEase Demo] payment_status enum has no demo_completed value — run migration 013.');
+            jsonError('Demo payments are disabled until the demo-payment migration is applied.', 503);
         } else {
-            // No payment_status column — use special_requests if available
+            // Legacy schema without payment_status: note the simulation so admin
+            // review remains possible; never implies any real payment.
             try {
                 $pdo->prepare("UPDATE booking SET special_requests = CONCAT(COALESCE(special_requests,''), '[DEMO PAYMENT SIMULATED]') WHERE booking_id = ?")
                     ->execute([$bookingId]);
-            } catch (Exception $ignored) {}
+            } catch (Exception $e) {
+                error_log('[TravelEase Demo] Could not record simulation note: ' . $e->getMessage());
+                jsonError('Demo payment could not be recorded.', 500);
+            }
         }
 
-        // Log to error_log for audit trail (no real transaction)
-        error_log('[TravelEase DEMO] Demo payment simulated for booking_id=' . $bookingId
-            . ' customer=' . $booking['customer_name']
+        // Safe server-side diagnostic (no personal data — only booking ID/amount)
+        error_log('[TravelEase DEMO] Simulated demo payment for booking_id=' . $bookingId
             . ' amount=INR' . $booking['total_cost']
-            . ' — NO REAL TRANSACTION');
+            . ' — NO REAL TRANSACTION, booking remains Pending');
 
         jsonSuccess([
             'booking_id'    => $bookingId,
