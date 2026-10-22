@@ -442,7 +442,7 @@ function requirePremiumFeature(string $featureName): array {
  *
  * @param PDO    $pdo        Active DB connection
  * @param string $action     Short action key, e.g. 'booking_approve'
- * @param string $entityType booking | package | user | payment
+ * @param string $entityType booking | package | user | tourist | payment
  * @param ?int   $entityId   PK of the affected row
  * @param array  $details    Structured context (JSON-encoded)
  * @param ?string $oldValue  Optional compact old state

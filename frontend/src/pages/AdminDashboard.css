@@ -130,7 +130,30 @@
 .adm-link .material-symbols-outlined { font-size: 18px; }
 
 /* ---- Main Content ---- */
-.adm-main { overflow-y: auto; }
+.adm-main { overflow-y: auto; min-width: 0; }
+
+/* Compact horizontal admin navigation is revealed when the desktop sidebar
+   is hidden, so every admin section remains reachable on phones and tablets. */
+.adm-mobile-nav {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 8px;
+  background: var(--color-inverse-surface);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  scrollbar-width: thin;
+}
+.adm-mobile-nav .adm-nav-item {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 40px;
+  padding: 8px 12px;
+}
+.adm-mobile-nav__link { text-decoration: none; }
+.adm-mobile-nav__logout { color: rgba(255,255,255,0.82); }
 
 .adm-content {
   padding: var(--space-xl);
@@ -297,6 +320,7 @@
 @media (max-width: 900px) {
   .adm-layout { grid-template-columns: 1fr; }
   .adm-sidebar { display: none; }
+  .adm-mobile-nav { display: flex; position: sticky; top: 0; z-index: 20; }
 }
 
 @media (max-width: 640px) {

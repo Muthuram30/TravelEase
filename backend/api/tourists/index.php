@@ -90,6 +90,10 @@ try {
             $fetch   = $pdo->prepare('SELECT * FROM tourist WHERE tourist_id = ?');
             $fetch->execute([$newId]);
             $tourist = $fetch->fetch();
+            logAdminAction($pdo, 'tourist_create', 'tourist', $newId, [
+                'name' => $v['name'],
+                'email' => $v['email'] ?: null,
+            ], null, 'created');
             jsonSuccess($tourist, 201);
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {
@@ -123,6 +127,10 @@ try {
             $fetch   = $pdo->prepare('SELECT * FROM tourist WHERE tourist_id = ?');
             $fetch->execute([$id]);
             $tourist = $fetch->fetch();
+            logAdminAction($pdo, 'tourist_update', 'tourist', $id, [
+                'name' => $v['name'],
+                'email' => $v['email'] ?: null,
+            ], null, 'updated');
             jsonSuccess($tourist);
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {
@@ -138,9 +146,18 @@ try {
         if (!$id) jsonError('Tourist ID is required.');
 
         try {
+            $lookup = $pdo->prepare('SELECT name, email FROM tourist WHERE tourist_id = ?');
+            $lookup->execute([$id]);
+            $touristBeforeDelete = $lookup->fetch();
+            if (!$touristBeforeDelete) jsonError('Tourist not found.', 404);
+
             $stmt = $pdo->prepare('DELETE FROM tourist WHERE tourist_id = ?');
             $stmt->execute([$id]);
             if ($stmt->rowCount() === 0) jsonError('Tourist not found.', 404);
+            logAdminAction($pdo, 'tourist_delete', 'tourist', $id, [
+                'name' => $touristBeforeDelete['name'],
+                'email' => $touristBeforeDelete['email'],
+            ], 'existing', null);
             jsonSuccess(['message' => 'Tourist deleted successfully.']);
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {

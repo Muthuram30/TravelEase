@@ -116,7 +116,8 @@ function applyBookingTransition(
     array $booking,
     string $targetStatus,
     array $extraSets = [],
-    array $extraParams = []
+    array $extraParams = [],
+    ?string $rejectionReason = null
 ): void {
     $id = (int) $booking['booking_id'];
     $currentStatus = $booking['booking_status'];
@@ -179,9 +180,8 @@ function applyBookingTransition(
         }
     }
     if ($targetStatus === 'Rejected' && in_array('rejection_reason', $cols)) {
-        $body = getJsonBody();
         $sets[] = 'rejection_reason = ?';
-        $params[] = (trim($body['reason'] ?? '') ?: null);
+        $params[] = $rejectionReason;
     }
 
     foreach (array_keys($extraSets) as $col) {
@@ -322,6 +322,11 @@ try {
         $action = trim($_GET['action'] ?? '');
         $id     = (int) ($_GET['id'] ?? 0);
         if (!$id) jsonError('Booking ID is required.');
+        // Read the body once. php://input is a stream, so reading it in both
+        // the transition helper and the audit branch loses the rejection reason.
+        $requestBody = $action === 'reject' ? getJsonBody() : [];
+        $reasonText = trim((string) ($requestBody['reason'] ?? ''));
+        $rejectionReason = $reasonText === '' ? null : mb_substr($reasonText, 0, 2000);
 
         $pdo->beginTransaction();
 
@@ -410,15 +415,14 @@ try {
                 jsonError("Only Pending bookings can be rejected. Current status: $currentStatus.", 409);
             }
 
-            applyBookingTransition($pdo, $booking, 'Rejected');
+            applyBookingTransition($pdo, $booking, 'Rejected', [], [], $rejectionReason);
 
             $pdo->commit();
 
-            $body = getJsonBody();
             logAdminAction($pdo, 'booking_reject', 'booking', $id, [
                 'customer'  => $booking['customer_name'],
                 'package'   => $booking['package_name'],
-                'reason'    => trim($body['reason'] ?? '') ?: null,
+                'reason'    => $rejectionReason,
             ], $currentStatus, 'Rejected');
 
             jsonSuccess([

@@ -53,6 +53,74 @@ export function getCsrfToken() {
 }
 
 /**
+ * Error thrown by every failed API call. `kind` lets the UI tell the
+ * failure families apart without parsing messages:
+ *   network    — the request never reached the server (backend down)
+ *   non_json   — server responded, but the body was not JSON (HTML error page, empty body, wrong URL)
+ *   not_found  — HTTP 404 on a non-JSON body → the endpoint file/URL does not exist
+ *   auth       — HTTP 401 → not logged in or session expired
+ *   forbidden  — HTTP 403 → logged in, but not permitted (includes CSRF failures)
+ *   server     — HTTP 5xx → PHP/database failure
+ *   api        — the application itself returned a JSON error envelope
+ * A 404 whose body IS a valid JSON envelope (e.g. "Booking not found.") is
+ * reported as kind `api` — that is a real result, not a routing failure.
+ */
+export class ApiError extends Error {
+  constructor(message, { status = 0, endpoint = '', kind = 'api', detail = '' } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.endpoint = endpoint;
+    this.kind = kind;
+    this.detail = detail; // short, safe context — never raw server internals
+  }
+}
+
+/**
+ * Safely extract a JSON body from a fetch Response.
+ * Returns null when the body is not valid JSON (HTML error page, empty body…)
+ * instead of crashing on `res.json()`.
+ */
+async function safeJson(res) {
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a well-classified Error for non-JSON responses.
+ * The optional body snippet is sanitized (markup stripped, truncated) so no
+ * raw PHP/HTML internals or sensitive details are exposed.
+ */
+async function nonJsonError(res, path) {
+  const status = res.status;
+  const kind = status === 404 ? 'not_found' : status >= 500 ? 'server' : 'non_json';
+  let snippet = '';
+  try {
+    snippet = (await res.text()).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  } catch {
+    snippet = '';
+  }
+  const msg = status === 404
+    ? `API endpoint not found (HTTP 404): ${path}`
+    : `Server returned a non-JSON response (HTTP ${status}) for ${path}`;
+  return new ApiError(msg, {
+    status,
+    endpoint: path,
+    kind,
+    detail: snippet ? `Response started with: "${snippet}"` : 'Empty response body',
+  });
+}
+
+/**
  * Generic fetch wrapper with JSON handling and CSRF token injection.
  */
 async function apiFetch(path, options = {}) {
@@ -72,27 +140,66 @@ async function apiFetch(path, options = {}) {
     headers['X-CSRF-Token'] = csrfToken;
   }
 
-  const res = await fetch(url, {
-    credentials: 'include', // Send session cookies for admin auth
-    headers,
-    ...options,
-  });
-
-  const text = await res.text();
-  let json;
+  let res;
   try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error(`Server returned non-JSON response (${res.status})`);
+    res = await fetch(url, {
+      credentials: 'include', // Send session cookies for admin auth
+      headers,
+      ...options,
+    });
+  } catch (networkErr) {
+    throw new ApiError(
+      'Cannot reach the server. Please check your connection and that the backend is running.',
+      { endpoint: path, kind: 'network', detail: String(networkErr?.message || networkErr) }
+    );
   }
 
-  if (!json.success) {
-    const err = new Error(json.message || 'API error');
-    err.status = res.status;
+  const json = await safeJson(res);
+  if (json === null || typeof json !== 'object') {
+    // Non-JSON body: HTML Apache 404/error page, PHP fatal-error page, empty body…
+    // never crash on JSON.parse, never convert into a false success.
+    throw await nonJsonError(res, path);
+  }
+
+  if (json.success === false || !res.ok) {
+    let kind = 'api';
+    if (res.status === 401) kind = 'auth';
+    else if (res.status === 403) kind = 'forbidden';
+    else if (res.status >= 500) kind = 'server';
+    const err = new ApiError(json.message || `Request failed (HTTP ${res.status})`, {
+      status: res.status,
+      endpoint: path,
+      kind,
+    });
     throw err;
   }
 
   return json.data;
+}
+
+/**
+ * Shared handler for raw fetch() calls in this file (endpoints that use the
+ * standard { success, data } envelope but bypass apiFetch). Never crashes on
+ * non-JSON bodies; classifies 401/403/5xx like apiFetch does.
+ */
+async function handleEnvelope(res, fallbackMsg, path = '') {
+  const json = await safeJson(res);
+  if (json === null || typeof json !== 'object') {
+    throw await nonJsonError(res, path || res.url);
+  }
+  if (!res.ok || json.success === false) {
+    let kind = 'api';
+    if (res.status === 401) kind = 'auth';
+    else if (res.status === 403) kind = 'forbidden';
+    else if (res.status >= 500) kind = 'server';
+    const serverMsg = json.message || (typeof json.error === 'string' ? json.error : '');
+    throw new ApiError(serverMsg || fallbackMsg || `Request failed (HTTP ${res.status})`, {
+      status: res.status,
+      kind,
+      endpoint: path,
+    });
+  }
+  return json;
 }
 
 // ============================================================
@@ -241,10 +348,7 @@ export const userAuthApi = {
       credentials: 'include',
       body: JSON.stringify({ email, password }),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Login failed');
-    }
+    const json = await handleEnvelope(res, 'Login failed', '/auth/user-login.php');
     // Store CSRF token so all subsequent mutations are protected
     if (json.data?.csrf_token) {
       setCsrfToken(json.data.csrf_token);
@@ -259,10 +363,7 @@ export const userAuthApi = {
       credentials: 'include',
       body: JSON.stringify({ email, password, full_name, phone, theme_preference }),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Registration failed');
-    }
+    const json = await handleEnvelope(res, 'Registration failed', '/auth/register.php');
     if (json.data?.csrf_token) {
       setCsrfToken(json.data.csrf_token);
     }
@@ -274,7 +375,7 @@ export const userAuthApi = {
       method: 'POST',
       credentials: 'include',
     });
-    const json = await res.json();
+    const json = await handleEnvelope(res, 'Logout failed', '/auth/user-logout.php');
     setCsrfToken(''); // session gone — token is dead
     return json;
   },
@@ -284,10 +385,7 @@ export const userAuthApi = {
       method: 'GET',
       credentials: 'include',
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Not authenticated');
-    }
+    const json = await handleEnvelope(res, 'Not authenticated', '/auth/user-me.php');
     const data = json.data || {};
     // Refresh the in-memory CSRF token on every session check
     if (data.csrf_token) {
@@ -306,11 +404,8 @@ export const userAuthApi = {
       credentials: 'include',
       body: JSON.stringify({ theme_preference }),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Failed to update theme');
-    }
-    return json.theme_preference;
+    const json = await handleEnvelope(res, 'Failed to update theme', '/auth/update-theme.php');
+    return json.theme_preference ?? theme_preference;
   },
 };
 
@@ -358,6 +453,16 @@ export const adminUsersApi = {
 // ============================================================
 export const dashboardApi = {
   getStats: () => apiFetch('/admin/dashboard.php'),
+};
+
+// ============================================================
+// ADMIN ACTIVITY AUDIT LOG
+// ============================================================
+export const adminAuditApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiFetch(`/admin/audit.php${qs ? '?' + qs : ''}`);
+  },
 };
 
 // ============================================================
@@ -522,10 +627,7 @@ export const recommendationsApi = {
       credentials: 'include',
       body: JSON.stringify(preferences),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.error || 'Failed to get recommendations');
-    }
+    const json = await handleEnvelope(res, 'Failed to get recommendations', '/recommendations/smart-assistant.php');
     return json.data;
   },
 
@@ -535,8 +637,8 @@ export const recommendationsApi = {
       method: 'GET',
       credentials: 'include',
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
+    const json = await safeJson(res);
+    if (json === null || typeof json !== 'object' || !res.ok || !json.success) {
       // Return default categories if API fails
       return [
         { category_slug: 'nature', category_name: 'Nature & Wildlife', icon: '🌿' },
@@ -565,10 +667,7 @@ export const premiumApi = {
       method: 'GET',
       credentials: 'include',
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Failed to check premium features');
-    }
+    const json = await handleEnvelope(res, 'Failed to check premium features', '/auth/check-premium.php');
     return json.data;
   },
 
@@ -583,10 +682,7 @@ export const premiumApi = {
       credentials: 'include',
       body: JSON.stringify({ feature: featureName }),
     });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || `Access denied to feature: ${featureName}`);
-    }
+    const json = await handleEnvelope(res, `Access denied to feature: ${featureName}`, '/auth/verify-feature.php');
     return json.data;
   },
 };

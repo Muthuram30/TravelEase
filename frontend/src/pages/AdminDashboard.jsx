@@ -5,6 +5,7 @@ import { formatPrice } from '../components/PackageCard';
 import AdminPayments from './admin/AdminPayments';
 import AdminUsers from './admin/AdminUsers';
 import AdminFoodMerchants from './admin/AdminFoodMerchants';
+import AdminActivity from './admin/AdminActivity';
 import './AdminDashboard.css';
 
 // ---- Admin sidebar nav items ----
@@ -12,10 +13,12 @@ const NAV = [
   { id: 'dashboard', icon: 'dashboard',         label: 'Overview' },
   { id: 'bookings',  icon: 'confirmation_number', label: 'Bookings' },
   { id: 'packages',  icon: 'luggage',           label: 'Packages' },
+  { id: 'tourists',  icon: 'person_pin',        label: 'Tourists' },
   { id: 'users',     icon: 'groups',            label: 'Users' },
   { id: 'premium',   icon: 'workspace_premium', label: 'Premium Management' },
   { id: 'payments',  icon: 'payments',          label: 'Payments' },
   { id: 'food',      icon: 'restaurant',        label: 'Food Partners' },
+  { id: 'activity',  icon: 'history',           label: 'Activity Log' },
 ];
 
 const STATUS_BADGE = {
@@ -31,6 +34,11 @@ const PAY_BADGE = {
   demo_completed: 'adm-pay-badge',
 };
 
+const packageIsActive = (pkg) => {
+  if (pkg?.is_active === undefined || pkg?.is_active === null) return true;
+  return pkg.is_active === true || pkg.is_active === 1 || pkg.is_active === '1';
+};
+
 const BOOKER_BADGE = {
   premium: { cls: 'adm-booker adm-booker--premium', label: 'Premium' },
   admin:   { cls: 'adm-booker adm-booker--admin',   label: 'Admin' },
@@ -42,6 +50,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [admin, setAdmin]     = useState(null);
   const [stats, setStats]     = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
   const [bookings, setBookings] = useState([]);
   const [bookingPages, setBookingPages] = useState({ page: 1, pages: 1, total: 0 });
   const [packages, setPackages] = useState([]);
@@ -65,6 +75,18 @@ export default function AdminDashboard() {
     setTimeout(() => setNotification(''), 4000);
   };
 
+  const loadDashboardStats = async () => {
+    setStatsLoading(true);
+    setDashboardError('');
+    try {
+      setStats(await dashboardApi.getStats());
+    } catch (err) {
+      setDashboardError(err.message || 'Could not load dashboard statistics. Check the PHP backend and database connection.');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   // Verify admin auth on load
   useEffect(() => {
     authApi.me()
@@ -79,7 +101,7 @@ export default function AdminDashboard() {
   // Load data based on active tab
   useEffect(() => {
     if (!admin) return;
-    if (activeTab === 'dashboard') dashboardApi.getStats().then(setStats).catch(() => {});
+    if (activeTab === 'dashboard') loadDashboardStats();
     if (activeTab === 'bookings')  loadBookings(1);
     if (activeTab === 'packages')  loadPackages();
     if (activeTab === 'tourists')  touristsApi.list().then(setTourists).catch(() => {});
@@ -126,7 +148,7 @@ export default function AdminDashboard() {
           await adminBookingsApi.confirm(id);
           showNotif(`Booking #${id} approved. Payment verification is a separate step.`);
           loadBookings(bookingPages.page);
-          if (activeTab === 'dashboard') dashboardApi.getStats().then(setStats);
+          if (activeTab === 'dashboard') loadDashboardStats();
         } catch (err) {
           showNotif(`Error: ${err.message}`);
         } finally {
@@ -144,7 +166,7 @@ export default function AdminDashboard() {
       await adminBookingsApi.reject(id, reason);
       showNotif(`Booking #${id} rejected.`);
       loadBookings(bookingPages.page);
-      if (activeTab === 'dashboard') dashboardApi.getStats().then(setStats);
+      if (activeTab === 'dashboard') loadDashboardStats();
     } catch (err) {
       showNotif(`Error: ${err.message}`);
     } finally {
@@ -331,7 +353,39 @@ export default function AdminDashboard() {
 
       {/* ---- Main Content ---- */}
       <main className="adm-main">
+        <nav className="adm-mobile-nav" aria-label="Admin sections">
+          {NAV.map((item) => (
+            <button
+              key={item.id}
+              className={`adm-nav-item ${activeTab === item.id ? 'adm-nav-item--active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
+            >
+              <span className="material-symbols-outlined">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+          <Link to="/" className="adm-nav-item adm-mobile-nav__link"><span className="material-symbols-outlined">home</span>Public Site</Link>
+          <button className="adm-nav-item adm-mobile-nav__logout" onClick={handleLogout}><span className="material-symbols-outlined">logout</span>Logout</button>
+        </nav>
+
         {/* ===== OVERVIEW TAB ===== */}
+        {activeTab === 'dashboard' && !stats && (
+          <div className="adm-content">
+            <div className="adm-page-header">
+              <div>
+                <h1 className="text-headline-md">Overview</h1>
+                <p className="text-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Live statistics from TravelEase operations</p>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={loadDashboardStats} disabled={statsLoading}>
+                <span className="material-symbols-outlined">refresh</span> {statsLoading ? 'Loading…' : 'Retry'}
+              </button>
+            </div>
+            {dashboardError && <div className="adminlogin-error" role="alert"><span className="material-symbols-outlined">error</span>{dashboardError}</div>}
+            {!dashboardError && <div className="adm-empty"><div className="conf-loading__spinner" /><p>Loading dashboard…</p></div>}
+          </div>
+        )}
+
         {activeTab === 'dashboard' && stats && (
           <div className="adm-content">
             <div className="adm-page-header">
@@ -339,10 +393,11 @@ export default function AdminDashboard() {
                 <h1 className="text-headline-md">Overview</h1>
                 <p className="text-body-sm" style={{color:'var(--color-on-surface-variant)'}}>Live statistics from TravelEase operations</p>
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => dashboardApi.getStats().then(setStats)}>
-                <span className="material-symbols-outlined">refresh</span> Refresh
+              <button className="btn btn-ghost btn-sm" onClick={loadDashboardStats} disabled={statsLoading}>
+                <span className="material-symbols-outlined">refresh</span> {statsLoading ? 'Refreshing…' : 'Refresh'}
               </button>
             </div>
+            {dashboardError && <div className="adminlogin-error" role="alert"><span className="material-symbols-outlined">error</span>{dashboardError}</div>}
 
             {/* Main Stats Grid */}
             <div className="adm-stats-grid">
@@ -366,7 +421,7 @@ export default function AdminDashboard() {
             <div className="adm-cards-row">
               {[
                 { label: 'Pending',     value: stats.pending_bookings,      cls: 'badge-pending',   icon: 'hourglass_empty',   tab: 'bookings' },
-                { label: 'Approved',    value: stats.confirmed_bookings,    cls: 'badge-confirmed', icon: 'check_circle',      tab: 'bookings' },
+                { label: 'Approved',    value: stats.confirmed_bookings,    cls: 'badge-confirmed', icon: 'check_circle',      tab: 'bookings', status: 'Confirmed' },
                 { label: 'Rejected',    value: stats.rejected_bookings,     cls: 'badge-rejected',  icon: 'block',             tab: 'bookings' },
                 { label: 'Cancelled',   value: stats.cancelled_bookings,    cls: 'badge-cancelled', icon: 'cancel',            tab: 'bookings' },
               ].map((s) => (
@@ -374,7 +429,7 @@ export default function AdminDashboard() {
                   key={s.label}
                   className="adm-status-card glass-card"
                   style={{ cursor: 'pointer' }}
-                  onClick={() => { setActiveTab(s.tab); setStatusFilter(s.label); }}
+                  onClick={() => { setActiveTab(s.tab); setStatusFilter(s.status || s.label); }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => e.key === 'Enter' && setActiveTab(s.tab)}
@@ -690,18 +745,16 @@ export default function AdminDashboard() {
                           <td>{formatPrice(p.cost)}</td>
                           <td><span className={p.availability <= 5 ? 'adm-avail-low' : ''}>{p.availability}</span></td>
                           <td>
-                            {p.is_active === undefined || p.is_active === null
+                            {packageIsActive(p)
                               ? <span className="badge badge-confirmed">Active</span>
-                              : (p.is_active
-                                  ? <span className="badge badge-confirmed">Active</span>
-                                  : <span className="badge badge-cancelled">Deactivated</span>)}
+                              : <span className="badge badge-cancelled">Deactivated</span>}
                           </td>
                           <td>
                             <div className="adm-table-actions">
                               <button className="btn btn-ghost btn-sm" onClick={() => setModal({ type: 'package', data: p })} title="Edit details">
                                 <span className="material-symbols-outlined">edit</span>
                               </button>
-                              {p.is_active === false && (
+                              {!packageIsActive(p) && (
                                 <button
                                   className="btn btn-success btn-sm"
                                   disabled={!!actionLoading}
@@ -711,7 +764,7 @@ export default function AdminDashboard() {
                                   <span className="material-symbols-outlined">visibility</span>
                                 </button>
                               )}
-                              {p.is_active !== false && (
+                              {packageIsActive(p) && (
                                 <button
                                   className="btn btn-secondary btn-sm"
                                   disabled={!!actionLoading}
@@ -747,6 +800,9 @@ export default function AdminDashboard() {
             <div className="adm-page-header">
               <h1 className="text-headline-md">Manage Tourists</h1>
               <div className="adm-filters">
+                <button className="btn btn-primary" onClick={() => setModal({ type: 'tourist', data: null })}>
+                  <span className="material-symbols-outlined">add</span> Add Tourist
+                </button>
                 <input type="text" className="input-field" placeholder="Search tourists..."
                   onChange={(e) => touristsApi.list({ search: e.target.value }).then(setTourists).catch(() => {})}
                   style={{ minWidth: 220 }}
@@ -807,6 +863,9 @@ export default function AdminDashboard() {
 
         {/* ===== FOOD PARTNERS TAB ===== */}
         {activeTab === 'food' && <AdminFoodMerchants showNotif={showNotif} />}
+
+        {/* ===== ADMIN ACTIVITY LOG ===== */}
+        {activeTab === 'activity' && <AdminActivity showNotif={showNotif} />}
       </main>
 
       {/* ---- Modal: Package form ---- */}

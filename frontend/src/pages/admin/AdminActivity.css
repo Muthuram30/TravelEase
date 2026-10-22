@@ -1,0 +1,32 @@
+.adm-activity-filters .input-field:first-child {
+  min-width: min(340px, 100%);
+}
+
+.adm-activity-table td {
+  vertical-align: top;
+}
+
+.adm-activity-time {
+  min-width: 150px;
+  white-space: nowrap;
+  color: var(--color-on-surface-variant);
+}
+
+.adm-activity-details {
+  min-width: 240px;
+  max-width: 440px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--color-on-surface-variant);
+}
+
+@media (max-width: 640px) {
+  .adm-activity-filters {
+    align-items: stretch;
+  }
+  .adm-activity-filters .input-field,
+  .adm-activity-filters .input-field:first-child {
+    min-width: 100%;
+    width: 100%;
+  }
+}

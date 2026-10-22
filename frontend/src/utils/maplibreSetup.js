@@ -8,15 +8,12 @@
 // fails with "Worker failed to load. Check that the worker URL is correct."
 // Importing the real worker file with `?url` and setting it explicitly
 // fixes dev AND production builds.
-//
-// Usage: `import * as maplibregl from '<path>/utils/maplibreSetup';`
-// (re-exports every maplibre-gl symbol so it is a drop-in replacement
-// for `import * as maplibregl from 'maplibre-gl'`).
+// Import this module once before creating any maplibregl.Map.
 // ============================================================
 
+import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { setWorkerUrl } from 'maplibre-gl';
 
-setWorkerUrl(maplibreWorkerUrl);
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-export * from 'maplibre-gl';
+export default maplibregl;

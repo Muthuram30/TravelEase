@@ -178,7 +178,8 @@ export default function AdminUsers({ presetRole = '', showNotif }) {
               <tbody>
                 {users.map((u) => {
                   const expiryLabel = premiumExpiryLabel(u.premium_expiry);
-                  const active = !!u.is_active;
+                  // PDO may serialize MySQL booleans as the strings '1'/'0'.
+                  const active = u.is_active === true || u.is_active === 1 || u.is_active === '1';
                   return (
                     <tr key={u.user_id}>
                       <td>#{u.user_id}</td>
