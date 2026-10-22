@@ -1,0 +1,21 @@
+/* ============================================================
+   Admin Food Merchants styles (uses shared design tokens)
+   ============================================================ */
+
+.adm-food-merchants__note {
+  color: var(--color-on-surface-variant);
+}
+
+/* keep table cells compact for long business names */
+.data-table td { vertical-align: middle; }
+
+@media (max-width: 720px) {
+  .adm-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .adm-filters .input-field {
+    min-width: 0 !important;
+    width: 100%;
+  }
+}

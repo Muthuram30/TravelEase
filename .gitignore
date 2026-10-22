@@ -47,3 +47,5 @@ php_errorlog
 
 # Source PNGs for destination artwork (converted to WebP in frontend/src/assets/destinations/)
 frontend/src/assets/other_img/
+
+backend/.env.opencode-test

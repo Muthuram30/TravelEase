@@ -117,6 +117,18 @@ try {
         $sql .= ' AND availability > 0';
     }
 
+    // Hide admin-deactivated packages from the public listing (new listing only —
+    // direct package links still resolve for customers with existing bookings).
+    $isActiveCol = $pdo->query("
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'tour_package'
+        AND COLUMN_NAME = 'is_active'
+    ")->fetchColumn();
+    if ((int) $isActiveCol > 0 && empty($_GET['include_inactive'])) {
+        $sql .= ' AND (is_active = TRUE OR is_active IS NULL)';
+    }
+
     $sql .= ' ORDER BY package_id ASC';
 
     $stmt = $pdo->prepare($sql);

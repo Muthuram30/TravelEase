@@ -26,6 +26,35 @@ try {
     // Total packages
     $totalPackages = (int) $pdo->query('SELECT COUNT(*) FROM tour_package')->fetchColumn();
 
+    // Active vs inactive packages (is_active was added by migration 001/011; guard for older installs)
+    $hasIsActive = (int) $pdo->query("
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'tour_package'
+        AND COLUMN_NAME = 'is_active'
+    ")->fetchColumn();
+    $activePackages   = $totalPackages;
+    $inactivePackages = 0;
+    if ($hasIsActive > 0) {
+        $activePackages   = (int) $pdo->query('SELECT COUNT(*) FROM tour_package WHERE is_active = TRUE')->fetchColumn();
+        $inactivePackages = $totalPackages - $activePackages;
+    }
+
+    // Registered account users by role (users table — customer accounts, not tourist records)
+    $userRoleCounts = ['user' => 0, 'premium' => 0, 'admin' => 0];
+    $totalUsers     = 0;
+    try {
+        $roleRows = $pdo->query('SELECT role, COUNT(*) AS cnt FROM users GROUP BY role')->fetchAll();
+        foreach ($roleRows as $row) {
+            if (array_key_exists($row['role'], $userRoleCounts)) {
+                $userRoleCounts[$row['role']] = (int) $row['cnt'];
+            }
+            $totalUsers += (int) $row['cnt'];
+        }
+    } catch (PDOException $inner) {
+        error_log('[TravelEase DB] Dashboard users query skipped: ' . $inner->getMessage());
+    }
+
     // Total bookings
     $totalBookings = (int) $pdo->query('SELECT COUNT(*) FROM booking')->fetchColumn();
 
@@ -39,6 +68,27 @@ try {
     $statusMap = ['Pending' => 0, 'Confirmed' => 0, 'Cancelled' => 0, 'Rejected' => 0];
     foreach ($statusCounts as $row) {
         $statusMap[$row['booking_status']] = (int) $row['cnt'];
+    }
+
+    // UPI payment verification queue — attempts awaiting admin review
+    $pendingVerifications = 0;
+    $verifiedPayments     = 0;
+    try {
+        $payStmt = $pdo->query("
+            SELECT payment_status, COUNT(*) AS cnt
+            FROM payment_attempt
+            GROUP BY payment_status
+        ")->fetchAll();
+        foreach ($payStmt as $row) {
+            if ($row['payment_status'] === 'pending_verification') {
+                $pendingVerifications = (int) $row['cnt'];
+            }
+            if ($row['payment_status'] === 'verified') {
+                $verifiedPayments = (int) $row['cnt'];
+            }
+        }
+    } catch (PDOException $inner) {
+        error_log('[TravelEase DB] Dashboard payments query skipped: ' . $inner->getMessage());
     }
 
     // Total revenue from confirmed AND paid bookings.
@@ -110,11 +160,19 @@ try {
     jsonSuccess([
         'total_tourists'        => $totalTourists,
         'total_packages'        => $totalPackages,
+        'active_packages'       => $activePackages,
+        'inactive_packages'     => $inactivePackages,
         'total_bookings'        => $totalBookings,
         'pending_bookings'      => $statusMap['Pending'],
         'confirmed_bookings'    => $statusMap['Confirmed'],
         'cancelled_bookings'    => $statusMap['Cancelled'],
         'rejected_bookings'     => $statusMap['Rejected'],
+        'total_users'           => $totalUsers,
+        'regular_users'         => $userRoleCounts['user'],
+        'premium_users'         => $userRoleCounts['premium'],
+        'admin_users'           => $userRoleCounts['admin'],
+        'pending_verifications' => $pendingVerifications,
+        'verified_payments'     => $verifiedPayments,
         'total_revenue'         => $totalRevenue,
         'next_client'           => $nextClient,
         'revenue_by_destination'=> $revenueByDestination,

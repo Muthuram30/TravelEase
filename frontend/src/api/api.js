@@ -113,6 +113,11 @@ export const packagesApi = {
     apiFetch(`/packages/manage.php?id=${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) =>
     apiFetch(`/packages/manage.php?id=${id}`, { method: 'DELETE' }),
+  // Archive / restore (packages with booking history cannot be hard-deleted)
+  activate: (id) =>
+    apiFetch(`/packages/manage.php?id=${id}&action=activate`, { method: 'PUT' }),
+  deactivate: (id) =>
+    apiFetch(`/packages/manage.php?id=${id}&action=deactivate`, { method: 'PUT' }),
 
   // Image management
   images: {
@@ -159,8 +164,11 @@ export const adminBookingsApi = {
     apiFetch(`/bookings/admin.php?action=confirm&id=${id}`, { method: 'POST' }),
   cancel: (id) =>
     apiFetch(`/bookings/admin.php?action=cancel&id=${id}`, { method: 'POST' }),
-  reject: (id) =>
-    apiFetch(`/bookings/admin.php?action=reject&id=${id}`, { method: 'POST' }),
+  reject: (id, reason = '') =>
+    apiFetch(`/bookings/admin.php?action=reject&id=${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
   delete: (id) =>
     apiFetch(`/bookings/admin.php?id=${id}`, { method: 'DELETE' }),
 };
@@ -318,6 +326,31 @@ export const destinationsApi = {
   get: (id) => apiFetch(`/destinations/index.php?id=${id}`),
   
   getBySlug: (slug) => apiFetch(`/destinations/index.php?slug=${encodeURIComponent(slug)}`),
+};
+
+// ============================================================
+// ADMIN USERS & PREMIUM MANAGEMENT
+// ============================================================
+export const adminUsersApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiFetch(`/admin/users.php${qs ? '?' + qs : ''}`);
+  },
+  get: (id) => apiFetch(`/admin/users.php?id=${id}`),
+  setActive: (id, isActive) =>
+    apiFetch(`/admin/users.php?action=set_active&id=${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ is_active: !!isActive }),
+    }),
+  grantPremium: (id, months = 12) =>
+    apiFetch(`/admin/users.php?action=set_premium&id=${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ months }),
+    }),
+  revokePremium: (id) =>
+    apiFetch(`/admin/users.php?action=revoke_premium&id=${id}`, {
+      method: 'POST',
+    }),
 };
 
 // ============================================================

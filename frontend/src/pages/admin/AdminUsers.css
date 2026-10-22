@@ -1,0 +1,12 @@
+/* ============================================================
+   Admin Users & Premium management styles
+   Shared classes (adm-pay-badge, adm-detail-grid, adm-pagination,
+   adm-user-link) live in AdminDashboard.css so the booking detail
+   modal and users section stay visually identical.
+   ============================================================ */
+
+.adm-user-detail { padding-bottom: var(--space-sm); }
+
+.adm-user-extra-meta .text-body-sm {
+  color: var(--color-on-surface-variant);
+}

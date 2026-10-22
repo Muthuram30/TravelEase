@@ -408,3 +408,109 @@
   margin: 0;
   text-align: left;
 }
+
+/* ============================================================
+   Admin portal upgrade styles (booking decisions, users, audit)
+   ============================================================ */
+
+/* Small payment status pill inside tables */
+.adm-pay-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-surface-container, #f1f5f9);
+  color: var(--color-on-surface-variant, #475569);
+  white-space: nowrap;
+}
+
+.adm-pay-badge--paid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.adm-pay-badge--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Bookertype chip in booking rows */
+.adm-booker {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--color-surface-container, #f1f5f9);
+  color: var(--color-on-surface-variant, #475569);
+}
+
+.adm-booker--premium { background: #fef3c7; color: #92400e; }
+.adm-booker--regular { background: #e0e7ff; color: #3730a3; }
+.adm-booker--admin   { background: #d1fae5; color: #065f46; }
+
+/* Rejection reason preview under the status badge */
+.adm-decision-note {
+  margin-top: 2px;
+  color: var(--color-error);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Decision metadata box inside the booking detail modal */
+.adm-decision-box {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--color-tertiary);
+  background: var(--color-surface-container-lowest, #f8fafc);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Detail grid shared between booking detail and user detail */
+.adm-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.adm-detail-grid > div { display: flex; flex-direction: column; gap: 4px; }
+
+.adm-detail-grid .text-label-caps {
+  color: var(--color-on-surface-variant);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* Users detail link */
+.adm-user-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+.adm-user-link:hover { text-decoration: underline; }
+
+/* Pagination row used by Bookings and Users tables */
+.adm-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--color-outline-variant, #e2e8f0);
+}

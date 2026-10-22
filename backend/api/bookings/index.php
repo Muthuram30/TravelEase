@@ -264,6 +264,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonError('Selected tour package not found.', 404);
         }
 
+        // ---- Admin-deactivated packages cannot be newly booked ----
+        // (existing bookings are untouched; only new bookings are blocked).
+        // is_active ships with the base schema (migration 001); if a very old
+        // database is missing it, the catch below simply skips the check
+        // instead of breaking booking creation.
+        try {
+            $activeStmt = $pdo->prepare('SELECT is_active FROM tour_package WHERE package_id = ?');
+            $activeStmt->execute([$packageId]);
+            $activeRow = $activeStmt->fetch(PDO::FETCH_ASSOC);
+            if ($activeRow && (int) $activeRow['is_active'] === 0) {
+                $pdo->rollBack();
+                jsonError('This package is currently not accepting new bookings. Please choose another package.', 409);
+            }
+        } catch (PDOException $e) {
+            // Legacy schema without is_active — allow booking as before.
+        }
+
         if ($numPersons > $package['availability']) {
             $pdo->rollBack();
             jsonError(

@@ -19,6 +19,7 @@ mysql -u root -p tourism_db < 011_upi_payment_system.sql
 mysql -u root -p tourism_db < 012_booking_pay_later.sql
 mysql -u root -p tourism_db < 013_fix_booking_constraints_demo_payment.sql
 mysql -u root -p tourism_db < 014_local_package_images.sql
+mysql -u root -p tourism_db < 015_booking_decisions_admin_audit.sql
 ```
 
 All migrations are **additive and idempotent** — they check `INFORMATION_SCHEMA` before altering, so re-running an already-applied migration is a safe no-op. On an existing database, run only the migrations you are missing (the numbering above reflects the intended schema history).

@@ -229,24 +229,16 @@ try {
             $pdo->prepare('UPDATE booking SET payment_status = ? WHERE booking_id = ?')
                 ->execute(['paid', $payment['booking_id']]);
 
-            // If booking is still Pending, auto-confirm it (optional - admin can also confirm separately)
-            if ($payment['booking_status'] === 'Pending') {
-                // Check availability first
-                $availStmt = $pdo->prepare('SELECT availability FROM tour_package WHERE package_id = (SELECT package_id FROM booking WHERE booking_id = ?)');
-                $availStmt->execute([$payment['booking_id']]);
-                $pkg = $availStmt->fetch();
-
-                if ($pkg && $pkg['availability'] >= $payment['number_of_persons']) {
-                    $pdo->prepare('UPDATE booking SET booking_status = ? WHERE booking_id = ?')
-                        ->execute(['Confirmed', $payment['booking_id']]);
-                    $pdo->prepare('UPDATE tour_package SET availability = availability - ? WHERE package_id = (SELECT package_id FROM booking WHERE booking_id = ?)')
-                        ->execute([$payment['number_of_persons'], $payment['booking_id']]);
-                }
-            }
+            // NOTE: payment verification no longer auto-confirms the booking.
+            // Booking approval is a separate admin decision in
+            // /api/bookings/admin.php (requirement: keep payment verification
+            // and booking approval separate; approving a booking must not be
+            // implied by its payment being verified).
 
             logAudit($pdo, $id, $payment['booking_id'], $oldStatus, $newStatus, 'admin', $admin['user_id'], $admin['full_name'] ?? $admin['email'] ?? 'Admin', [
                 'notes' => $notes,
-                'booking_status_updated' => $payment['booking_status'] === 'Pending' ? 'Confirmed' : 'unchanged',
+                'payment_amount_expected' => $payment['amount_expected'] ?? null,
+                'booking_payment_status_set_to' => 'paid',
             ]);
 
             $pdo->commit();

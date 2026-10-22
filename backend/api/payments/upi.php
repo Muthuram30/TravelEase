@@ -91,9 +91,10 @@ try {
         // NOTE: possession of a booking/payment ID is NEVER sufficient.
         $user = getCurrentUser();
         $stmt = $pdo->prepare('
-            SELECT b.*, t.email, t.name
+            SELECT b.*, t.email, t.name, p.package_name
             FROM booking b
             JOIN tourist t ON b.tourist_id = t.tourist_id
+            LEFT JOIN tour_package p ON p.package_id = b.package_id
             WHERE b.booking_id = ?
               AND (b.user_id = ? OR t.email = ?)
         ');
@@ -145,7 +146,8 @@ try {
         // Create new payment attempt
         $orderRef = 'TE' . $bookingId . '_' . bin2hex(random_bytes(4)); // TE123_abc123
         $amount = (float) $booking['total_cost'];
-        $note = "TravelEase Booking #{$bookingId} - {$booking['package_name']}";
+        $note = "TravelEase Booking #{$bookingId}"
+            . ($booking['package_name'] ? " - {$booking['package_name']}" : '');
 
         $qrPayload = generateUpiPayload($config, $orderRef, $amount, $note);
         $qrUrl = generateQrSvg($qrPayload);
@@ -161,7 +163,7 @@ try {
                 (booking_id, user_id, payment_method, amount_expected, currency,
                  merchant_upi_id, merchant_name, upi_order_ref, qr_payload,
                  payment_status, expires_at)
-                VALUES (?, ?, \'upi_qr\', ?, \'INR\', ?, ?, ?, \'pending_qr\', ?)
+                VALUES (?, ?, \'upi_qr\', ?, \'INR\', ?, ?, ?, ?, \'pending_qr\', ?)
             ');
             $stmt->execute([
                 $bookingId,
@@ -219,7 +221,8 @@ try {
             JOIN tourist t ON b.tourist_id = t.tourist_id
             WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
+        // Parameter order matches the query: payment_id, booking.user_id, tourist.email
+        $stmt->execute([$paymentId, $user['user_id'] ?? 0, $user['email']]);
         $payment = $stmt->fetch();
 
         if (!$payment) {
@@ -272,7 +275,8 @@ try {
             JOIN tourist t ON b.tourist_id = t.tourist_id
             WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
+        // Parameter order matches the query: payment_id, booking.user_id, tourist.email
+        $stmt->execute([$paymentId, $user['user_id'] ?? 0, $user['email']]);
         $payment = $stmt->fetch();
 
         if (!$payment) {
@@ -310,9 +314,12 @@ try {
             $pdo->prepare('UPDATE payment_attempt SET submitted_utr = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE payment_id = ?')
                 ->execute([$utr, $newStatus, $paymentId]);
 
-            // Update booking payment_status to pending_verification
+            // Update booking payment_status. NOTE: booking.payment_status is a
+            // different enum (pending/paid/failed/refunded/demo_completed) from
+            // payment_attempt.payment_status — 'pending' is the correct value:
+            // still unpaid while awaiting manual UTR verification.
             $pdo->prepare('UPDATE booking SET payment_status = ? WHERE booking_id = ?')
-                ->execute(['pending_verification', $payment['booking_id']]);
+                ->execute(['pending', $payment['booking_id']]);
 
             logAudit($pdo, $paymentId, $payment['booking_id'], $oldStatus, $newStatus, 'customer', $user['user_id'] ?? null, $user['name'] ?? 'Customer', ['utr' => $utr]);
 
@@ -353,7 +360,8 @@ try {
             JOIN tourist t ON b.tourist_id = t.tourist_id
             WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
+        // Parameter order matches the query: payment_id, booking.user_id, tourist.email
+        $stmt->execute([$paymentId, $user['user_id'] ?? 0, $user['email']]);
         $payment = $stmt->fetch();
 
         if (!$payment) {
@@ -441,7 +449,8 @@ try {
             JOIN tourist t ON b.tourist_id = t.tourist_id
             WHERE pa.payment_id = ? AND (b.user_id = ? OR t.email = ?)
         ');
-        $stmt->execute([$paymentId, $user['email'], $user['user_id'] ?? 0]);
+        // Parameter order matches the query: payment_id, booking.user_id, tourist.email
+        $stmt->execute([$paymentId, $user['user_id'] ?? 0, $user['email']]);
         $payment = $stmt->fetch();
 
         if (!$payment) {

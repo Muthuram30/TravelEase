@@ -436,6 +436,55 @@ function requirePremiumFeature(string $featureName): array {
 }
 
 /**
+ * Record an admin action in the admin_audit_log table (created by
+ * migration 015). Best-effort: audit failures are logged but never
+ * abort the primary operation or leak internals to the client.
+ *
+ * @param PDO    $pdo        Active DB connection
+ * @param string $action     Short action key, e.g. 'booking_approve'
+ * @param string $entityType booking | package | user | payment
+ * @param ?int   $entityId   PK of the affected row
+ * @param array  $details    Structured context (JSON-encoded)
+ * @param ?string $oldValue  Optional compact old state
+ * @param ?string $newValue  Optional compact new state
+ */
+function logAdminAction(
+    PDO $pdo,
+    string $action,
+    string $entityType,
+    ?int $entityId,
+    array $details = [],
+    ?string $oldValue = null,
+    ?string $newValue = null
+): void {
+    try {
+        startSession();
+        $actorId   = $_SESSION['user_id'] ?? null;
+        $actorName = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? null;
+
+        $stmt = $pdo->prepare('
+            INSERT INTO admin_audit_log
+                (action, entity_type, entity_id, actor_id, actor_name, details, old_value, new_value, ip_address, user_agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([
+            $action,
+            $entityType,
+            $entityId,
+            $actorId,
+            $actorName,
+            json_encode($details, JSON_UNESCAPED_UNICODE),
+            $oldValue,
+            $newValue,
+            getClientIp(),
+            $_SERVER['HTTP_USER_AGENT'] ?? null,
+        ]);
+    } catch (Throwable $auditErr) {
+        error_log('[TravelEase Audit] Failed to record admin action "' . $action . '": ' . $auditErr->getMessage());
+    }
+}
+
+/**
  * Get user's monthly booking count and check if limit is reached.
  * Free users: 3 bookings/month
  * Premium/Admin: unlimited

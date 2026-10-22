@@ -12,9 +12,11 @@ try {
     // GET: List all merchants or filter by status
     if ($method === 'GET') {
         $status = $_GET['status'] ?? null;
+        // Explicit column list — never expose merchant password hashes
         $sql = "
             SELECT 
-                m.*,
+                m.merchant_id, m.business_name, m.owner_name, m.email, m.phone,
+                m.status, m.rejection_reason, m.created_at, m.updated_at,
                 (SELECT COUNT(*) FROM foodspot_location WHERE merchant_id = m.merchant_id) AS location_count,
                 (SELECT venue_name FROM foodspot_location WHERE merchant_id = m.merchant_id LIMIT 1) AS primary_venue
             FROM foodspot_merchant m
@@ -94,7 +96,7 @@ try {
 
 } catch (PDOException $e) {
     error_log("Admin food merchants error: " . $e->getMessage());
-    jsonError('Database error: ' . $e->getMessage(), 500);
+    jsonError('Database error. Please try again.', 500);
 }
 
 jsonError('Method not allowed', 405);
