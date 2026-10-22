@@ -1,0 +1,7 @@
+.account-page { min-height: calc(100vh - var(--nav-height)); display:grid; place-items:center; padding:48px 20px; background:radial-gradient(circle at top right, #dcefdc, transparent 42%), var(--color-background); }
+.account-card { width:min(100%, 440px); padding:32px; display:flex; flex-direction:column; gap:14px; }
+.account-leaf { width:52px; height:52px; display:grid; place-items:center; border-radius:16px; color:white; background:linear-gradient(135deg, #1b5e3b, #4d8f4b); }
+.account-tabs { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid var(--color-outline-variant); }
+.account-tabs button { background:none; border:0; padding:10px; color:var(--color-on-surface-variant); cursor:pointer; font:inherit; }
+.account-tabs .active { color:var(--color-primary); border-bottom:2px solid var(--color-primary); font-weight:700; }
+.account-form { display:flex; flex-direction:column; gap:12px; }.account-form .btn { justify-content:center; }.account-error { padding:10px; border-radius:8px; background:var(--color-error-container); color:var(--color-on-error-container); }

@@ -1,0 +1,16 @@
+# Allow image access from storage directory
+<IfModule mod_rewrite.c>
+    RewriteEngine Off
+</IfModule>
+
+# Serve images directly
+<FilesMatch "\.(jpg|jpeg|png|webp|gif)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Deny access to other files
+<FilesMatch "\.(?!jpg|jpeg|png|webp|gif).*$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

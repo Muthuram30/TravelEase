@@ -1,0 +1,18 @@
+# Backend-specific ignores
+
+# Environment configuration
+.env
+
+# Rate limiting storage
+/storage/rate_limits/*.json
+
+# Uploaded files
+/storage/uploads/**
+!/storage/uploads/.gitkeep
+
+# PHP logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

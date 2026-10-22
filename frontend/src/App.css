@@ -1,0 +1,21 @@
+/* ============================================================
+   App.css — Global overrides and layout wrappers
+   ============================================================ */
+
+/* Smooth page-level transitions */
+main {
+  animation: fadeSlideUp 0.3s ease forwards;
+}
+
+/* Remove Vite default styles */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Sticky footer layout */
+body {
+  display: flex;
+  flex-direction: column;
+}

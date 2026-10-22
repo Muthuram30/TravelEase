@@ -1,0 +1,300 @@
+/* ============================================================
+   FoodSpots & Merchant Portal Styles
+   ============================================================ */
+
+.foodspots-page {
+  min-height: 100vh;
+  padding-bottom: var(--space-2xl);
+}
+
+.foodspots-hero {
+  padding: 4rem 0 2rem;
+  text-align: center;
+  background: linear-gradient(180deg, var(--color-surface-container-low) 0%, transparent 100%);
+}
+
+.foodspots-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--color-surface-container);
+  color: var(--color-primary);
+  border-radius: var(--radius-pill);
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.foodspots-nav-tabs {
+  display: inline-flex;
+  gap: 8px;
+  background: var(--color-surface-container);
+  padding: 6px;
+  border-radius: var(--radius-pill);
+  margin-top: 2rem;
+}
+
+.foodspots-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font-family: var(--font-label);
+  font-size: var(--fs-label-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.foodspots-nav-tab.active {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-1);
+}
+
+.foodspots-container {
+  margin-top: 2rem;
+}
+
+/* Filters Bar */
+.foodspots-filters {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-xl);
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.foodspots-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.foodspots-select {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-size: var(--fs-body-sm);
+  outline: none;
+}
+
+.foodspots-partner-guarantee {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--color-on-surface-variant);
+}
+
+/* Listings Grid */
+.foodspots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.foodspot-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  border-radius: var(--radius-xl);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.foodspot-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+}
+
+.foodspot-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.foodspot-card__cuisine {
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.foodspot-card__title {
+  margin: 0;
+  font-size: var(--fs-headline-sm);
+}
+
+.foodspot-card__loc {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-on-surface-variant);
+  margin-top: 4px;
+}
+
+.foodspot-card__price {
+  color: var(--color-secondary);
+  font-weight: 700;
+}
+
+.foodspot-card__desc {
+  color: var(--color-on-surface);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  flex: 1;
+}
+
+.foodspot-card__address {
+  color: var(--color-on-surface-variant);
+  font-size: 13px;
+  margin-bottom: 1rem;
+}
+
+.foodspot-card__amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.foodspot-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--color-surface-container);
+  color: var(--color-on-surface);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+
+.foodspot-tag.veg {
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.foodspot-card__footer {
+  border-top: 1px solid var(--color-surface-container);
+  padding-top: 0.75rem;
+}
+
+.foodspot-contract-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+}
+
+/* Merchant Form */
+.merchant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.merchant-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .merchant-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.merchant-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.merchant-field input,
+.merchant-field select,
+.merchant-field textarea {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-size: var(--fs-body-sm);
+  outline: none;
+  font-family: inherit;
+}
+
+.merchant-field input:focus,
+.merchant-field select:focus,
+.merchant-field textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.merchant-compliance-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-surface-container-low);
+  border-radius: var(--radius-md);
+  color: var(--color-on-surface-variant);
+}
+
+.foodspots-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
+}
+
+.foodspots-alert.success {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
+}
+
+.foodspots-alert.error {
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
+}
+
+.foodspot-card__cuisine-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  color: white;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.foodspot-card__price-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+}
+

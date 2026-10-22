@@ -1,0 +1,36 @@
+# ============================================================
+# TravelEase Backend .htaccess
+# Apache configuration for PHP API endpoints
+# ============================================================
+
+# Enable CORS for all PHP files (backup — helpers.php also sets headers)
+# Header always set Access-Control-Allow-Origin "http://localhost:5173"
+
+# Security Headers
+Header always set X-Frame-Options "DENY"
+Header always set X-XSS-Protection "1; mode=block"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Hide PHP version
+ServerSignature Off
+
+# Protect .env file
+<Files ".env">
+    Require all denied
+</Files>
+
+# Protect composer files
+<Files "composer.lock">
+    Require all denied
+</Files>
+
+# Disable directory listing
+Options -Indexes
+
+# Rewrite API requests
+RewriteEngine On
+
+# Handle OPTIONS preflight (handled in PHP helpers.php)
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule .* - [R=204,L]
